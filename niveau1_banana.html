@@ -1,0 +1,1764 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#10142b" />
+  <title>Banana Balistique</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f7f3df;
+      --muted: #b9bfd5;
+      --panel: rgba(13, 17, 39, 0.92);
+      --line: rgba(255, 255, 255, 0.13);
+      --gold: #ffd84a;
+      --p1: #55d6ff;
+      --p2: #ff668f;
+      --danger: #ff6b57;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at 50% -20%, #313866 0, #171b38 38%, #090c1c 100%);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      min-height: 100dvh;
+      padding: 14px;
+      overflow-x: hidden;
+    }
+
+    button, input, select { font: inherit; }
+
+    button {
+      border: 0;
+      cursor: pointer;
+      color: #111525;
+      font-weight: 850;
+      letter-spacing: 0.02em;
+    }
+
+    .game-shell {
+      width: min(1280px, 100%);
+      display: grid;
+      gap: 10px;
+    }
+
+    .stage {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 22px;
+      background: #080b1c;
+      box-shadow: 0 24px 80px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.04);
+      aspect-ratio: 16 / 9;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .modal {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: clamp(14px, 3vw, 34px);
+      background: linear-gradient(rgba(4,7,19,.58), rgba(4,7,19,.82));
+      backdrop-filter: blur(8px);
+      z-index: 5;
+    }
+
+    .modal.hidden, .controls.hidden { display: none; }
+
+    .card {
+      width: min(580px, 100%);
+      padding: clamp(20px, 4vw, 38px);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 26px;
+      background:
+        linear-gradient(145deg, rgba(31,37,76,.96), rgba(13,17,39,.96));
+      box-shadow: 0 26px 70px rgba(0,0,0,.42);
+    }
+
+    .eyebrow {
+      margin: 0 0 5px;
+      color: var(--gold);
+      font-size: .78rem;
+      font-weight: 900;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 7vw, 4.4rem);
+      line-height: .92;
+      letter-spacing: -.06em;
+      text-transform: uppercase;
+      text-shadow: 0 4px 0 rgba(0,0,0,.2);
+    }
+
+    .tagline {
+      color: var(--muted);
+      margin: 14px 0 22px;
+      line-height: 1.5;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      color: #d7dbee;
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    input[type="text"], select {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 12px;
+      padding: 11px 12px;
+      background: rgba(2,5,18,.55);
+      color: var(--ink);
+      outline: none;
+    }
+
+    input[type="text"]:focus, select:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(255,216,74,.14);
+    }
+
+    input:disabled { opacity: .62; }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: .92rem;
+      margin-top: 2px;
+    }
+
+    .check-row input { accent-color: var(--gold); width: 18px; height: 18px; }
+
+    .primary, .secondary, .fire-button, .icon-button {
+      border-radius: 14px;
+      min-height: 48px;
+      transition: transform .12s ease, filter .12s ease, opacity .12s ease;
+    }
+
+    .primary:hover, .secondary:hover, .fire-button:hover, .icon-button:hover { filter: brightness(1.08); }
+    .primary:active, .secondary:active, .fire-button:active, .icon-button:active { transform: translateY(2px) scale(.99); }
+
+    .primary {
+      width: 100%;
+      margin-top: 18px;
+      background: linear-gradient(180deg, #ffe46d, #ffc82f);
+      box-shadow: 0 9px 0 #9c6610, 0 14px 28px rgba(255,200,47,.2);
+    }
+
+    .secondary {
+      width: 100%;
+      background: #dbe0f4;
+      box-shadow: 0 6px 0 #7f88aa;
+    }
+
+    .end-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .winner {
+      margin: 10px 0 0;
+      color: var(--gold);
+      font-size: clamp(1.5rem, 5vw, 2.7rem);
+      font-weight: 950;
+      line-height: 1.05;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(170px, .7fr) auto;
+      align-items: stretch;
+      gap: 10px;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 14px 40px rgba(0,0,0,.28);
+    }
+
+    .control-block {
+      display: grid;
+      align-content: center;
+      gap: 6px;
+      min-width: 0;
+      padding: 4px 8px;
+    }
+
+    .control-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .control-value { color: var(--ink); }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--gold);
+      cursor: pointer;
+    }
+
+    .fire-button {
+      align-self: stretch;
+      min-width: 170px;
+      padding: 0 20px;
+      background: linear-gradient(180deg, #ffdf54, #ffb61f);
+      box-shadow: inset 0 -5px 0 rgba(126,68,0,.32);
+      text-transform: uppercase;
+    }
+
+    .fire-button:disabled, input:disabled {
+      cursor: not-allowed;
+      opacity: .45;
+      filter: grayscale(.35);
+    }
+
+    .mini-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .icon-button {
+      min-width: 52px;
+      padding: 0 13px;
+      background: rgba(255,255,255,.1);
+      color: var(--ink);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: none;
+    }
+
+    .hint {
+      margin: 0;
+      text-align: center;
+      color: #8e96b5;
+      font-size: .76rem;
+    }
+
+    @media (max-width: 800px) {
+      body { padding: 7px; place-items: start center; }
+      .game-shell { gap: 7px; }
+      .stage { border-radius: 15px; overflow: visible; }
+      .modal {
+        position: fixed;
+        inset: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        z-index: 100;
+      }
+      .controls {
+        grid-template-columns: 1fr 1fr;
+        border-radius: 15px;
+      }
+      .fire-button { min-width: 0; min-height: 54px; }
+      .mini-actions { min-height: 54px; }
+      .hint { display: none; }
+    }
+
+    @media (max-width: 520px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+      .card { border-radius: 20px; padding: 20px; }
+      .tagline { margin-bottom: 16px; }
+      .controls { padding: 8px; gap: 7px; }
+      .control-block { padding: 2px 4px; }
+      .control-head { font-size: .68rem; }
+      .fire-button { grid-column: 1 / -1; }
+      .mini-actions { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell" aria-label="Banana Balistique, jeu d'artillerie">
+    <section class="stage">
+      <canvas id="game" width="1280" height="720" aria-label="Zone de jeu"></canvas>
+
+      <div id="menuModal" class="modal">
+        <div class="card">
+          <p class="eyebrow">Artillerie rétro · hommage original</p>
+          <h1>Banana<br>Balistique</h1>
+          <p class="tagline">Deux primates, une ville désormais franchement destructible, et des lois de Newton prises en otage. Les immeubles peuvent protéger, gêner ou finir en gravats ; le vent change à chaque tour.</p>
+
+          <div class="form-grid">
+            <div class="field">
+              <label for="modeSelect">Mode</label>
+              <select id="modeSelect">
+                <option value="ai">1 joueur contre l’ordinateur</option>
+                <option value="pvp">2 joueurs sur le même écran</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="targetSelect">Victoire</label>
+              <select id="targetSelect">
+                <option value="2">2 points</option>
+                <option value="3" selected>3 points</option>
+                <option value="5">5 points</option>
+                <option value="7">7 points</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="nameOne">Joueur 1</label>
+              <input id="nameOne" type="text" maxlength="18" value="Capitaine Banane" />
+            </div>
+            <div class="field">
+              <label for="nameTwo">Adversaire</label>
+              <input id="nameTwo" type="text" maxlength="18" value="Gorille mécanique" disabled />
+            </div>
+            <div class="field full">
+              <label class="check-row"><input id="guideToggle" type="checkbox" checked /> Afficher une courte aide de trajectoire</label>
+            </div>
+          </div>
+
+          <button id="startButton" class="primary">Lancer la première banane</button>
+          <p id="gameDedication" style="margin:14px 0 0;color:#8e96b5;font-size:.74rem;line-height:1.45;text-align:center;"></p>
+        </div>
+      </div>
+
+      <div id="endModal" class="modal hidden">
+        <div class="card">
+          <p class="eyebrow">Fin de la bataille</p>
+          <div id="winnerText" class="winner">Victoire !</div>
+          <p id="finalScore" class="tagline"></p>
+          <a id="nextLevelButton" class="primary" href="index_Balistique.html" style="display:none;margin-top:0;padding:13px;text-align:center;text-decoration:none;color:#111525;font-weight:850;">🎓 Niveau supérieur débloqué — continuer →</a>
+          <div class="end-actions">
+            <button id="replayButton" class="primary" style="margin-top:0">Rejouer</button>
+            <button id="menuButton" class="secondary">Menu</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="controls" class="controls hidden" aria-label="Commandes de tir">
+      <div class="control-block">
+        <div class="control-head"><span>Angle</span><span id="angleValue" class="control-value">45°</span></div>
+        <input id="angleRange" type="range" min="10" max="85" value="45" step="1" aria-label="Angle du tir" />
+      </div>
+      <div class="control-block">
+        <div class="control-head"><span>Puissance</span><span id="powerValue" class="control-value">78</span></div>
+        <input id="powerRange" type="range" min="25" max="120" value="78" step="1" aria-label="Puissance du tir" />
+      </div>
+      <button id="fireButton" class="fire-button">🍌 Feu !</button>
+      <div class="mini-actions">
+        <button id="soundButton" class="icon-button" aria-label="Activer ou couper le son" title="Son">🔊</button>
+        <button id="quitButton" class="icon-button" aria-label="Retourner au menu" title="Menu">☰</button>
+      </div>
+    </section>
+    <p class="hint">Clavier : ↑/↓ angle · ←/→ puissance · espace pour tirer</p>
+  </main>
+
+  <script src="bb_save.js"></script>
+  <script>
+    (function () {
+      var el = document.getElementById('gameDedication');
+      if (el && window.BB) {
+        var o = BB.getOwner();
+        el.textContent = o
+          ? '🏅 Édition de ' + o + ' — réalisée par Aurélien Brulois (CPE, Collège Château Rance) avec son agent IA Aethonyx ; gagnée au concours « Chevalier du Château Rance ». Hommage à Gorillas (Microsoft) & Worms (Team17).'
+          : '';
+      }
+    })();
+  </script>
+  <script>
+    (() => {
+      'use strict';
+
+      const W = 1280;
+      const H = 720;
+      const GROUND_Y = 680;
+      const WIND_ACCEL = 16;
+      const MAX_WIND = 18;
+      const TWO_PI = Math.PI * 2;
+
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d');
+      const terrainCanvas = document.createElement('canvas');
+      terrainCanvas.width = W;
+      terrainCanvas.height = H;
+      const terrainCtx = terrainCanvas.getContext('2d', { willReadFrequently: true });
+
+      const menuModal = document.getElementById('menuModal');
+      const endModal = document.getElementById('endModal');
+      const controls = document.getElementById('controls');
+      const modeSelect = document.getElementById('modeSelect');
+      const targetSelect = document.getElementById('targetSelect');
+      const nameOne = document.getElementById('nameOne');
+      const nameTwo = document.getElementById('nameTwo');
+      const guideToggle = document.getElementById('guideToggle');
+      const startButton = document.getElementById('startButton');
+      const replayButton = document.getElementById('replayButton');
+      const menuButton = document.getElementById('menuButton');
+      const quitButton = document.getElementById('quitButton');
+      const fireButton = document.getElementById('fireButton');
+      const soundButton = document.getElementById('soundButton');
+      const angleRange = document.getElementById('angleRange');
+      const powerRange = document.getElementById('powerRange');
+      const angleValue = document.getElementById('angleValue');
+      const powerValue = document.getElementById('powerValue');
+      const winnerText = document.getElementById('winnerText');
+      const finalScore = document.getElementById('finalScore');
+
+      const palettes = [
+        ['#29345f', '#33416f', '#3e4e7e', '#263056'],
+        ['#4a315f', '#5a3769', '#673f75', '#3e294f'],
+        ['#24475a', '#2d5668', '#356477', '#1f3b4d']
+      ];
+
+      const state = {
+        phase: 'menu',
+        mode: 'ai',
+        targetScore: 3,
+        names: ['Capitaine Banane', 'Gorille mécanique'],
+        scores: [0, 0],
+        current: 0,
+        round: 1,
+        wind: 0,
+        windPulse: 0,
+        gravity: 360,
+        buildings: [],
+        coverBuildings: [],
+        distant: [],
+        gorillas: [],
+        projectile: null,
+        particles: [],
+        explosions: [],
+        stars: [],
+        clouds: [],
+        terrainPixels: null,
+        aims: [
+          { angle: 45, power: 78 },
+          { angle: 45, power: 78 }
+        ],
+        guide: true,
+        phaseTimer: 0,
+        nextAction: null,
+        aiDelay: 0,
+        throwAnim: [0, 0],
+        hitAnim: [0, 0],
+        roundShots: [0, 0],
+        matchScore: [0, 0],
+        shake: 0,
+        message: 'Préparez les bananes.',
+        messageTimer: 0,
+        sound: true,
+        audioContext: null,
+        flightAccumulator: 0,
+        lastTime: performance.now()
+      };
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function random(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function randomInt(min, max) {
+        return Math.floor(random(min, max + 1));
+      }
+
+      function roundedRect(context, x, y, w, h, r) {
+        const radius = Math.min(r, w / 2, h / 2);
+        context.beginPath();
+        context.moveTo(x + radius, y);
+        context.arcTo(x + w, y, x + w, y + h, radius);
+        context.arcTo(x + w, y + h, x, y + h, radius);
+        context.arcTo(x, y + h, x, y, radius);
+        context.arcTo(x, y, x + w, y, radius);
+        context.closePath();
+      }
+
+      function safeName(value, fallback) {
+        const cleaned = String(value || '').trim().replace(/[<>]/g, '');
+        return cleaned.slice(0, 18) || fallback;
+      }
+
+      function initBackdrop() {
+        state.stars = Array.from({ length: 92 }, () => ({
+          x: random(0, W),
+          y: random(22, 405),
+          r: random(.6, 2.1),
+          a: random(.25, .9),
+          twinkle: random(0, TWO_PI)
+        }));
+
+        state.clouds = Array.from({ length: 7 }, () => ({
+          x: random(-200, W + 100),
+          y: random(90, 350),
+          size: random(.65, 1.35),
+          speed: random(2, 8),
+          alpha: random(.035, .1)
+        }));
+      }
+
+      function generateDistantCity() {
+        state.distant = [];
+        let x = -20;
+        while (x < W + 20) {
+          const width = randomInt(38, 76);
+          const height = randomInt(55, 210);
+          state.distant.push({ x, width, height });
+          x += width + randomInt(4, 13);
+        }
+      }
+
+      function generateCity() {
+        terrainCtx.clearRect(0, 0, W, H);
+        state.buildings = [];
+        state.coverBuildings = [];
+        const palette = palettes[randomInt(0, palettes.length - 1)];
+        let x = -15;
+        let index = 0;
+
+        while (x < W + 20) {
+          const width = randomInt(82, 128);
+          let height = randomInt(180, 430);
+          if (x < 250 || x > 980) height = randomInt(205, 390);
+          state.buildings.push({
+            x,
+            width,
+            height,
+            top: GROUND_Y - height,
+            color: palette[index % palette.length]
+          });
+          x += width;
+          index++;
+        }
+
+        const leftIndex = clamp(nearestBuildingIndex(random(W * .12, W * .23)), 0, state.buildings.length - 2);
+        const rightIndex = clamp(nearestBuildingIndex(random(W * .77, W * .88)), 1, state.buildings.length - 1);
+        const leftCoverIndex = leftIndex + 1;
+        const rightCoverIndex = rightIndex - 1;
+        const leftCover = randomCoverHeight();
+        const rightCover = randomCoverHeight();
+
+        configureCoverBuilding(leftCoverIndex, state.buildings[leftIndex].top, leftCover);
+        configureCoverBuilding(rightCoverIndex, state.buildings[rightIndex].top, rightCover);
+
+        state.buildings.forEach(drawBuilding);
+
+        terrainCtx.fillStyle = '#1a203d';
+        terrainCtx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+        terrainCtx.fillStyle = 'rgba(255,255,255,.07)';
+        terrainCtx.fillRect(0, GROUND_Y, W, 4);
+
+        const leftBuilding = state.buildings[leftIndex];
+        const rightBuilding = state.buildings[rightIndex];
+        state.gorillas = [
+          {
+            x: leftBuilding.x + leftBuilding.width - random(5, 12),
+            y: leftBuilding.top,
+            dir: 1,
+            hostIndex: leftIndex,
+            coverIndex: leftCoverIndex,
+            coverAmount: leftCover
+          },
+          {
+            x: rightBuilding.x + random(5, 12),
+            y: rightBuilding.top,
+            dir: -1,
+            hostIndex: rightIndex,
+            coverIndex: rightCoverIndex,
+            coverAmount: rightCover
+          }
+        ];
+        state.coverBuildings = [leftCoverIndex, rightCoverIndex];
+
+        refreshTerrainPixels();
+      }
+
+      function drawBuilding(building) {
+        const { x, width, height, top, color } = building;
+        terrainCtx.fillStyle = color;
+        terrainCtx.fillRect(x, top, width, height + 42);
+
+        terrainCtx.fillStyle = 'rgba(255,255,255,.08)';
+        terrainCtx.fillRect(x + 5, top + 5, width - 10, 5);
+        terrainCtx.fillStyle = 'rgba(0,0,0,.16)';
+        terrainCtx.fillRect(x + width - 7, top + 10, 7, height - 10);
+
+        const windowW = 10;
+        const windowH = 14;
+        const gapX = 15;
+        const gapY = 25;
+        for (let wy = top + 24; wy < GROUND_Y - 18; wy += gapY) {
+          for (let wx = x + 14; wx < x + width - 12; wx += gapX) {
+            const lit = Math.random() > .45;
+            terrainCtx.fillStyle = lit
+              ? (Math.random() > .25 ? '#e7d77b' : '#72bfd2')
+              : 'rgba(7,13,31,.56)';
+            terrainCtx.fillRect(wx, wy, windowW, windowH);
+          }
+        }
+      }
+
+      function randomCoverHeight() {
+        // Hauteur du bouclier AU-DESSUS des pieds du gorille (qui mesure ~70 px).
+        // Objectif : un vrai mur derrière lequel se planquer, à percer ou à lober.
+        const roll = Math.random();
+        if (roll < .15) return randomInt(30, 50);    // muret : le gorille dépasse largement
+        if (roll < .55) return randomInt(70, 100);   // mur à hauteur de tête
+        if (roll < .85) return randomInt(105, 135);  // abri : il faut percer pour l'exposer
+        return randomInt(140, 170);                  // forteresse : tir lobé ou tunnel obligatoire
+      }
+
+      function configureCoverBuilding(index, hostTop, coverHeight) {
+        const building = state.buildings[index];
+        building.top = clamp(hostTop - coverHeight, 150, GROUND_Y - 150);
+        building.height = GROUND_Y - building.top;
+      }
+
+      function nearestBuildingIndex(targetX) {
+        let bestIndex = 0;
+        let bestDistance = Infinity;
+        for (let i = 0; i < state.buildings.length; i++) {
+          const building = state.buildings[i];
+          const center = building.x + building.width / 2;
+          const d = Math.abs(center - targetX);
+          if (d < bestDistance) {
+            bestDistance = d;
+            bestIndex = i;
+          }
+        }
+        return bestIndex;
+      }
+
+      function refreshTerrainPixels() {
+        state.terrainPixels = terrainCtx.getImageData(0, 0, W, H).data;
+      }
+
+      function solidAt(x, y) {
+        const ix = Math.round(x);
+        const iy = Math.round(y);
+        if (ix < 0 || ix >= W || iy < 0 || iy >= H) return false;
+        return state.terrainPixels[(iy * W + ix) * 4 + 3] > 16;
+      }
+
+      function terrainColorAt(x, y) {
+        const centerX = Math.round(x);
+        const centerY = Math.round(y);
+        for (let radius = 0; radius <= 12; radius += 3) {
+          for (let angle = 0; angle < TWO_PI; angle += Math.PI / 4) {
+            const ix = clamp(Math.round(centerX + Math.cos(angle) * radius), 0, W - 1);
+            const iy = clamp(Math.round(centerY + Math.sin(angle) * radius), 0, H - 1);
+            const offset = (iy * W + ix) * 4;
+            if (state.terrainPixels[offset + 3] > 16) {
+              return `rgb(${state.terrainPixels[offset]}, ${state.terrainPixels[offset + 1]}, ${state.terrainPixels[offset + 2]})`;
+            }
+          }
+        }
+        return '#45435d';
+      }
+
+      function pickWind() {
+        const roll = Math.random();
+        if (roll < .1) return randomInt(-2, 2);
+        const sign = Math.random() < .5 ? -1 : 1;
+        if (roll < .4) return sign * randomInt(3, 7);
+        if (roll < .78) return sign * randomInt(8, 13);
+        return sign * randomInt(14, MAX_WIND);
+      }
+
+      function rollWind(forceChange = false) {
+        const previous = state.wind;
+        let next = pickWind();
+        for (let attempt = 0; attempt < 7 && forceChange; attempt++) {
+          const barelyChanged = Math.abs(next - previous) < 5;
+          const sameDirection = Math.sign(next) === Math.sign(previous) && Math.abs(next) > 2 && Math.abs(previous) > 2;
+          if (!barelyChanged && !sameDirection) break;
+          next = pickWind();
+        }
+        state.wind = next;
+        state.windPulse = 1;
+      }
+
+      function windWords() {
+        const strength = Math.abs(state.wind);
+        if (strength <= 2) return 'vent presque calme';
+        const tier = strength <= 7 ? 'brise' : strength <= 13 ? 'vent soutenu' : 'vent violent';
+        return `${tier} vers ${state.wind < 0 ? 'la gauche' : 'la droite'}`;
+      }
+
+      function getLaunchOrigin(gorilla) {
+        const origin = {
+          x: gorilla.x + gorilla.dir * 28,
+          y: gorilla.y - 46
+        };
+        const cover = state.buildings[gorilla.coverIndex];
+        if (cover && origin.x >= cover.x && origin.x <= cover.x + cover.width && origin.y >= cover.top - 2) {
+          origin.y = cover.top - 11;
+        }
+        return origin;
+      }
+
+      function resetRound(firstRound = false) {
+        generateDistantCity();
+        generateCity();
+        rollWind(false);
+        state.particles.length = 0;
+        state.explosions.length = 0;
+        state.projectile = null;
+        state.throwAnim = [0, 0];
+        state.hitAnim = [0, 0];
+        state.shake = 0;
+        state.phaseTimer = 0;
+        state.nextAction = null;
+        state.flightAccumulator = 0;
+        state.roundShots = [0, 0];
+        state.current = firstRound ? 0 : ((state.round - 1) % 2);
+        state.phase = 'aim';
+        state.message = `Manche ${state.round} — ${state.names[state.current]} ouvre le bal.`;
+        state.messageTimer = 2.2;
+        state.aims[0] = { angle: randomInt(38, 52), power: randomInt(68, 84) };
+        state.aims[1] = { angle: randomInt(38, 52), power: randomInt(68, 84) };
+        syncControls();
+        prepareTurn();
+      }
+
+      function startGame(resetScore = true) {
+        state.mode = modeSelect.value;
+        state.targetScore = Number(targetSelect.value);
+        state.names[0] = safeName(nameOne.value, 'Joueur 1');
+        state.names[1] = state.mode === 'ai'
+          ? 'Gorille mécanique'
+          : safeName(nameTwo.value, 'Joueur 2');
+        state.guide = guideToggle.checked;
+        if (resetScore) {
+          state.scores = [0, 0];
+          state.round = 1;
+          state.matchScore = [0, 0];
+        }
+        menuModal.classList.add('hidden');
+        endModal.classList.add('hidden');
+        controls.classList.remove('hidden');
+        resetRound(true);
+      }
+
+      function showMenu() {
+        state.phase = 'menu';
+        state.projectile = null;
+        state.particles.length = 0;
+        state.explosions.length = 0;
+        menuModal.classList.remove('hidden');
+        endModal.classList.add('hidden');
+        controls.classList.add('hidden');
+      }
+
+      function prepareTurn() {
+        syncControls();
+        const cpuTurn = state.mode === 'ai' && state.current === 1;
+        setControlsEnabled(!cpuTurn && state.phase === 'aim');
+        if (cpuTurn) {
+          state.aiDelay = .8;
+          state.message = `Le gorille mécanique consulte Newton — ${windWords()}.`;
+          state.messageTimer = 1.35;
+        } else {
+          state.aiDelay = 0;
+          state.message = `À ${state.names[state.current]} de jouer — ${windWords()}.`;
+          state.messageTimer = 1.55;
+        }
+      }
+
+      function syncControls() {
+        const aim = state.aims[state.current];
+        angleRange.value = String(Math.round(aim.angle));
+        powerRange.value = String(Math.round(aim.power));
+        angleValue.textContent = `${Math.round(aim.angle)}°`;
+        powerValue.textContent = String(Math.round(aim.power));
+      }
+
+      function setControlsEnabled(enabled) {
+        angleRange.disabled = !enabled;
+        powerRange.disabled = !enabled;
+        fireButton.disabled = !enabled;
+      }
+
+      function humanCanAct() {
+        return state.phase === 'aim' && !(state.mode === 'ai' && state.current === 1);
+      }
+
+      function launchProjectile() {
+        if (state.phase !== 'aim') return;
+        if (state.mode === 'ai' && state.current === 1 && state.aiDelay > 0) return;
+
+        state.roundShots[state.current] = (state.roundShots[state.current] || 0) + 1;
+        const shooter = state.gorillas[state.current];
+        const aim = state.aims[state.current];
+        const angle = aim.angle * Math.PI / 180;
+        const speed = aim.power * 7.2;
+        const dir = shooter.dir;
+        const origin = getLaunchOrigin(shooter);
+
+        state.projectile = {
+          x: origin.x,
+          y: origin.y,
+          vx: dir * Math.cos(angle) * speed,
+          vy: -Math.sin(angle) * speed,
+          age: 0,
+          spin: 0,
+          trail: []
+        };
+        state.phase = 'flying';
+        state.throwAnim[state.current] = 1;
+        state.message = `${state.names[state.current]} expédie la marchandise !`;
+        state.messageTimer = 1.4;
+        state.flightAccumulator = 0;
+        setControlsEnabled(false);
+        playLaunchSound();
+      }
+
+      function updateProjectile(step) {
+        const p = state.projectile;
+        if (!p) return;
+
+        p.age += step;
+        p.vx += state.wind * WIND_ACCEL * step;
+        p.vy += state.gravity * step;
+        p.x += p.vx * step;
+        p.y += p.vy * step;
+        p.spin += step * 11;
+
+        if (p.trail.length === 0 || distance(p.x, p.y, p.trail[p.trail.length - 1].x, p.trail[p.trail.length - 1].y) > 13) {
+          p.trail.push({ x: p.x, y: p.y, life: 1 });
+          if (p.trail.length > 38) p.trail.shift();
+        }
+
+        if (p.age > .12 && projectileHitsTerrain(p)) {
+          resolveTerrainHit(p.x, p.y);
+          return;
+        }
+
+        for (let i = 0; i < state.gorillas.length; i++) {
+          if (i === state.current && p.age < .38) continue;
+          if (projectileHitsGorilla(p, state.gorillas[i])) {
+            resolveGorillaHit(i, p.x, p.y);
+            return;
+          }
+        }
+
+        if (p.x < -90 || p.x > W + 90 || p.y > H + 100 || p.y < -250) {
+          state.projectile = null;
+          state.phase = 'pause';
+          state.phaseTimer = .65;
+          state.nextAction = switchTurn;
+          state.message = 'La banane rejoint une carrière dans l’aéronautique.';
+          state.messageTimer = 1.4;
+        }
+      }
+
+      function projectileHitsTerrain(p) {
+        const r = 6;
+        return solidAt(p.x, p.y) ||
+          solidAt(p.x + r, p.y) ||
+          solidAt(p.x - r, p.y) ||
+          solidAt(p.x, p.y + r) ||
+          solidAt(p.x, p.y - r);
+      }
+
+      function projectileHitsGorilla(p, gorilla) {
+        const box = { x: gorilla.x - 24, y: gorilla.y - 58, w: 48, h: 58 };
+        const nearestX = clamp(p.x, box.x, box.x + box.w);
+        const nearestY = clamp(p.y, box.y, box.y + box.h);
+        return distance(p.x, p.y, nearestX, nearestY) < 9;
+      }
+
+      function resolveTerrainHit(x, y) {
+        state.projectile = null;
+        const rubbleColor = terrainColorAt(x, y);
+        const radius = randomInt(39, 49);
+        const struckCover = state.coverBuildings.some(index => {
+          const building = state.buildings[index];
+          return building && x >= building.x && x <= building.x + building.width && y >= building.top;
+        });
+        createCrater(x, y, radius);
+        spawnRubble(x, y, rubbleColor, radius);
+        spawnExplosion(x, y, false);
+        state.phase = 'pause';
+        state.phaseTimer = 1;
+        state.nextAction = switchTurn;
+        state.message = struckCover
+          ? 'Le bouclier immobilier commence sérieusement à tousser.'
+          : 'L’urbanisme vient de perdre un argument.';
+        state.messageTimer = 1.8;
+        playExplosionSound(false);
+      }
+
+      function resolveGorillaHit(hitIndex, x, y) {
+        state.projectile = null;
+        const scorer = hitIndex === state.current ? 1 - state.current : state.current;
+        state.scores[scorer] += 1;
+        state.hitAnim[hitIndex] = 1;
+
+        // Score « radinerie de bananes » : moins de tirs pour conclure = plus de points.
+        const winnerShots = state.roundShots[scorer] || 0;
+        const ROUND_BASE = 10000, SHOT_COST = 700, ROUND_FLOOR = 500;
+        const kills = 1; // Niveau 1 : un seul adversaire (le bonus multi-cibles arrivera au Worms)
+        const roundReward = Math.max(ROUND_FLOOR, ROUND_BASE - winnerShots * SHOT_COST) + (kills - 1) * 5000;
+        state.matchScore[scorer] += roundReward;
+
+        spawnExplosion(x, y, true);
+        state.phase = 'pause';
+        state.phaseTimer = 1.7;
+        state.shake = 18;
+        state.message = (hitIndex === state.current
+          ? `Auto-banane ! Point pour ${state.names[scorer]}`
+          : `Plein museau ! Point pour ${state.names[scorer]}`) + ` (+${roundReward.toLocaleString('fr-FR')} pts)`;
+        state.messageTimer = 2;
+        playExplosionSound(true);
+
+        if (state.scores[scorer] >= state.targetScore) {
+          state.nextAction = () => endGame(scorer);
+        } else {
+          state.nextAction = () => {
+            state.round += 1;
+            resetRound(false);
+          };
+        }
+      }
+
+      function createCrater(x, y, radius) {
+        const points = [];
+        const pointCount = 22;
+        for (let i = 0; i < pointCount; i++) {
+          const angle = i / pointCount * TWO_PI;
+          const roughness = 1 + Math.sin(i * 2.7) * .06 + random(-.16, .14);
+          const r = radius * roughness;
+          points.push({ x: x + Math.cos(angle) * r, y: y + Math.sin(angle) * r });
+        }
+
+        terrainCtx.save();
+        terrainCtx.globalCompositeOperation = 'destination-out';
+        // destination-out efface proportionnellement à l'alpha de la source :
+        // il FAUT un remplissage opaque, sinon le fillStyle hérité (alpha .07) ne retire presque rien.
+        terrainCtx.globalAlpha = 1;
+        terrainCtx.fillStyle = '#000';
+        terrainCtx.beginPath();
+        terrainCtx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) terrainCtx.lineTo(points[i].x, points[i].y);
+        terrainCtx.closePath();
+        terrainCtx.fill();
+
+        for (let i = 0; i < 7; i++) {
+          const angle = random(0, TWO_PI);
+          const distanceFromCenter = random(radius * .7, radius * 1.04);
+          terrainCtx.beginPath();
+          terrainCtx.arc(
+            x + Math.cos(angle) * distanceFromCenter,
+            y + Math.sin(angle) * distanceFromCenter,
+            random(radius * .09, radius * .23),
+            0,
+            TWO_PI
+          );
+          terrainCtx.fill();
+        }
+        terrainCtx.restore();
+
+        terrainCtx.save();
+        terrainCtx.globalCompositeOperation = 'source-atop';
+        terrainCtx.strokeStyle = 'rgba(12, 10, 22, .72)';
+        terrainCtx.lineWidth = 9;
+        terrainCtx.lineJoin = 'round';
+        terrainCtx.beginPath();
+        terrainCtx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) terrainCtx.lineTo(points[i].x, points[i].y);
+        terrainCtx.closePath();
+        terrainCtx.stroke();
+
+        // Liseré clair : le béton mis à nu accroche la lumière, le trou se lit même sur ciel sombre.
+        terrainCtx.strokeStyle = 'rgba(245, 234, 208, .42)';
+        terrainCtx.lineWidth = 2.5;
+        terrainCtx.stroke();
+
+        terrainCtx.strokeStyle = 'rgba(8, 7, 17, .48)';
+        terrainCtx.lineWidth = 3;
+        for (let i = 0; i < 8; i++) {
+          const angle = random(0, TWO_PI);
+          const start = radius * random(.78, .96);
+          const end = radius * random(1.18, 1.55);
+          terrainCtx.beginPath();
+          terrainCtx.moveTo(x + Math.cos(angle) * start, y + Math.sin(angle) * start);
+          terrainCtx.lineTo(x + Math.cos(angle + random(-.12, .12)) * end, y + Math.sin(angle + random(-.12, .12)) * end);
+          terrainCtx.stroke();
+        }
+        terrainCtx.restore();
+        refreshTerrainPixels();
+      }
+
+      function spawnRubble(x, y, color, radius) {
+        const colors = [color, '#252338', '#6b5f69', '#b98c58'];
+        for (let i = 0; i < 34; i++) {
+          const angle = random(Math.PI * 1.08, Math.PI * 1.92);
+          const speed = random(55, 245);
+          state.particles.push({
+            x: x + random(-radius * .25, radius * .25),
+            y: y + random(-radius * .2, radius * .2),
+            vx: Math.cos(angle) * speed + random(-65, 65),
+            vy: Math.sin(angle) * speed - random(40, 150),
+            life: random(.65, 1.55),
+            maxLife: 1.55,
+            size: random(3, 9),
+            color: colors[randomInt(0, colors.length - 1)],
+            gravity: random(260, 430),
+            shape: 'chunk',
+            rotation: random(0, TWO_PI),
+            spin: random(-9, 9)
+          });
+        }
+      }
+
+      function spawnExplosion(x, y, big) {
+        state.explosions.push({ x, y, age: 0, life: big ? .72 : .55, maxR: big ? 74 : 47 });
+        const count = big ? 105 : 62;
+        const particleColors = ['#fff3a6', '#ffd34e', '#ff9f38', '#ff5f45', '#5d536d'];
+        for (let i = 0; i < count; i++) {
+          const angle = random(0, TWO_PI);
+          const speed = random(big ? 55 : 35, big ? 310 : 210);
+          state.particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - random(0, big ? 90 : 55),
+            life: random(.35, big ? 1.3 : .9),
+            maxLife: 1,
+            size: random(2, big ? 8 : 6),
+            color: particleColors[randomInt(0, particleColors.length - 1)],
+            gravity: random(150, 330)
+          });
+        }
+        state.shake = Math.max(state.shake, big ? 18 : 8);
+      }
+
+      function switchTurn() {
+        state.current = 1 - state.current;
+        rollWind(true);
+        state.phase = 'aim';
+        state.phaseTimer = 0;
+        state.nextAction = null;
+        prepareTurn();
+      }
+
+      function endGame(winner) {
+        state.phase = 'gameover';
+        state.nextAction = null;
+        setControlsEnabled(false);
+
+        const winnerName = state.names[winner];
+        const winnerPoints = state.matchScore[winner] || 0;
+        const humanWon = state.mode === 'pvp' || winner === 0;
+
+        winnerText.textContent = `${winnerName} remporte la ville !`;
+        finalScore.textContent = `Score : ${state.scores[0]} à ${state.scores[1]} · ${winnerName} totalise ${winnerPoints.toLocaleString('fr-FR')} pts.`;
+
+        const nextBtn = document.getElementById('nextLevelButton');
+        if (humanWon && window.BB) {
+          if (typeof BB.submitScore === 'function') BB.submitScore(winnerName, winnerPoints);
+          if (typeof BB.setLastScore === 'function') BB.setLastScore(winnerPoints);
+          let isRecord = false;
+          if (typeof BB.getHof === 'function') {
+            const top = BB.getHof()[0];
+            isRecord = !!(top && top.name === winnerName && top.points === winnerPoints);
+          }
+          if (typeof BB.markDone === 'function') {
+            BB.markDone('N1', { result: `${state.scores[0]}-${state.scores[1]}`, points: winnerPoints, mode: state.mode });
+          }
+          if (nextBtn) nextBtn.style.display = 'block';
+          finalScore.textContent += (isRecord ? ' 🏆 Nouveau record de l’édition !' : '') + ' 🎓 Niveau 2 débloqué dans l’Académie !';
+        } else if (nextBtn) {
+          nextBtn.style.display = 'none';
+        }
+
+        endModal.classList.remove('hidden');
+      }
+
+      function chooseAiShot() {
+        const shooter = state.gorillas[1];
+        const target = state.gorillas[0];
+        const origin = getLaunchOrigin(shooter);
+        const originX = origin.x;
+        const originY = origin.y;
+        let best = { score: Infinity, angle: 45, power: 78 };
+        const candidates = [];
+
+        for (let angle = 18; angle <= 82; angle += 2) {
+          for (let power = 34; power <= 120; power += 2) {
+            const score = evaluateAiShot(originX, originY, target, angle, power);
+            if (score < best.score) best = { score, angle, power };
+            if (score < 65) candidates.push({ score, angle, power });
+          }
+        }
+
+        candidates.sort((a, b) => a.score - b.score);
+        const pool = candidates.length ? candidates.slice(0, Math.min(8, candidates.length)) : [best];
+        const selected = pool[randomInt(0, pool.length - 1)];
+        state.aims[1].angle = clamp(selected.angle + random(-2.2, 2.2), 10, 85);
+        state.aims[1].power = clamp(selected.power + random(-3.7, 3.7), 25, 120);
+        syncControls();
+        launchProjectile();
+      }
+
+      function evaluateAiShot(originX, originY, target, angleDeg, power) {
+        const angle = angleDeg * Math.PI / 180;
+        const speed = power * 7.2;
+        let x = originX;
+        let y = originY;
+        let vx = -Math.cos(angle) * speed;
+        let vy = -Math.sin(angle) * speed;
+        let minDistance = Infinity;
+        const dt = .024;
+
+        for (let age = 0; age < 6.6; age += dt) {
+          vx += state.wind * WIND_ACCEL * dt;
+          vy += state.gravity * dt;
+          x += vx * dt;
+          y += vy * dt;
+
+          const d = distance(x, y, target.x, target.y - 34);
+          if (d < minDistance) minDistance = d;
+          if (d < 20) return d * .15;
+          if (age > .12 && solidAt(x, y)) break;
+          if (x < -80 || x > W + 80 || y > H + 60 || y < -280) break;
+        }
+        return minDistance;
+      }
+
+      function distance(x1, y1, x2, y2) {
+        return Math.hypot(x2 - x1, y2 - y1);
+      }
+
+      function update(dt) {
+        if (state.messageTimer > 0) state.messageTimer -= dt;
+        state.throwAnim[0] = Math.max(0, state.throwAnim[0] - dt * 2.8);
+        state.throwAnim[1] = Math.max(0, state.throwAnim[1] - dt * 2.8);
+        state.hitAnim[0] = Math.max(0, state.hitAnim[0] - dt * .65);
+        state.hitAnim[1] = Math.max(0, state.hitAnim[1] - dt * .65);
+        state.shake = Math.max(0, state.shake - dt * 26);
+        state.windPulse = Math.max(0, state.windPulse - dt * 1.8);
+
+        for (const cloud of state.clouds) {
+          const drift = Math.abs(state.wind) <= 2
+            ? cloud.speed * .35
+            : state.wind * 1.15 + Math.sign(state.wind) * cloud.speed * .22;
+          cloud.x += drift * dt;
+          if (cloud.x > W + 180) cloud.x = -220;
+          if (cloud.x < -240) cloud.x = W + 190;
+        }
+
+        if (state.phase === 'flying') {
+          state.flightAccumulator += dt;
+          const fixedStep = 1 / 180;
+          while (state.flightAccumulator >= fixedStep && state.phase === 'flying') {
+            updateProjectile(fixedStep);
+            state.flightAccumulator -= fixedStep;
+          }
+        }
+
+        if (state.phase === 'aim' && state.mode === 'ai' && state.current === 1 && state.aiDelay > 0) {
+          state.aiDelay -= dt;
+          if (state.aiDelay <= 0) chooseAiShot();
+        }
+
+        if (state.phase === 'pause') {
+          state.phaseTimer -= dt;
+          if (state.phaseTimer <= 0 && state.nextAction) {
+            const action = state.nextAction;
+            state.nextAction = null;
+            action();
+          }
+        }
+
+        for (const explosion of state.explosions) explosion.age += dt;
+        state.explosions = state.explosions.filter(e => e.age < e.life);
+
+        for (const particle of state.particles) {
+          particle.life -= dt;
+          particle.vy += particle.gravity * dt;
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+          particle.vx *= Math.pow(.985, dt * 60);
+          if (Number.isFinite(particle.rotation) && Number.isFinite(particle.spin)) {
+            particle.rotation += particle.spin * dt;
+          }
+        }
+        state.particles = state.particles.filter(p => p.life > 0);
+
+        if (state.projectile) {
+          for (const point of state.projectile.trail) point.life -= dt * 1.7;
+          state.projectile.trail = state.projectile.trail.filter(point => point.life > 0);
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        drawSky();
+        drawDistantCity();
+
+        ctx.save();
+        if (state.shake > 0) {
+          ctx.translate(random(-state.shake, state.shake), random(-state.shake * .55, state.shake * .55));
+        }
+        ctx.drawImage(terrainCanvas, 0, 0);
+        if (state.phase !== 'menu') {
+          if (state.guide && state.phase === 'aim' && !(state.mode === 'ai' && state.current === 1)) drawAimGuide();
+          drawGorilla(state.gorillas[0], 0);
+          drawGorilla(state.gorillas[1], 1);
+          drawForegroundCover();
+          drawProjectile();
+          drawExplosions();
+          drawParticles();
+        }
+        ctx.restore();
+
+        if (state.phase !== 'menu') drawHud();
+      }
+
+      function drawSky() {
+        const gradient = ctx.createLinearGradient(0, 0, 0, H);
+        gradient.addColorStop(0, '#0b1233');
+        gradient.addColorStop(.52, '#3a3158');
+        gradient.addColorStop(1, '#f08767');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, W, H);
+
+        const glow = ctx.createRadialGradient(1020, 130, 5, 1020, 130, 120);
+        glow.addColorStop(0, 'rgba(255,246,180,.95)');
+        glow.addColorStop(.16, 'rgba(255,226,130,.5)');
+        glow.addColorStop(1, 'rgba(255,226,130,0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(880, -10, 290, 290);
+        ctx.fillStyle = '#ffe9a7';
+        ctx.beginPath();
+        ctx.arc(1020, 130, 32, 0, TWO_PI);
+        ctx.fill();
+
+        const now = performance.now() * .001;
+        for (const star of state.stars) {
+          const alpha = star.a * (.72 + Math.sin(now * 1.7 + star.twinkle) * .28);
+          ctx.fillStyle = `rgba(255,255,230,${alpha})`;
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.r, 0, TWO_PI);
+          ctx.fill();
+        }
+
+        for (const cloud of state.clouds) drawCloud(cloud);
+        drawWindStreaks();
+      }
+
+      function drawWindStreaks() {
+        const strength = Math.abs(state.wind);
+        if (strength < 7 || state.phase === 'menu') return;
+        const direction = Math.sign(state.wind);
+        const span = W + 260;
+        const travel = performance.now() * .018 * strength * direction;
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 246, 220, ${.05 + strength / MAX_WIND * .12})`;
+        ctx.lineWidth = strength >= 14 ? 2 : 1.3;
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 13; i++) {
+          const raw = i * 173 + travel;
+          const x = ((raw % span) + span) % span - 130;
+          const y = 125 + (i * 47) % 420;
+          const length = 24 + strength * 2.2 + (i % 3) * 11;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + direction * length, y + Math.sin(i * 1.8) * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawCloud(cloud) {
+        ctx.save();
+        ctx.globalAlpha = cloud.alpha;
+        ctx.fillStyle = '#f1e9ff';
+        ctx.translate(cloud.x, cloud.y);
+        ctx.scale(cloud.size, cloud.size);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 65, 20, 0, 0, TWO_PI);
+        ctx.ellipse(-38, 2, 40, 17, 0, 0, TWO_PI);
+        ctx.ellipse(35, 4, 46, 16, 0, 0, TWO_PI);
+        ctx.ellipse(-12, -14, 35, 25, 0, 0, TWO_PI);
+        ctx.ellipse(24, -11, 28, 22, 0, 0, TWO_PI);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawDistantCity() {
+        ctx.save();
+        ctx.globalAlpha = .27;
+        ctx.fillStyle = '#111730';
+        for (const building of state.distant) {
+          const y = GROUND_Y - building.height + 35;
+          ctx.fillRect(building.x, y, building.width, building.height);
+        }
+        ctx.restore();
+      }
+
+      function drawAimGuide() {
+        const gorilla = state.gorillas[state.current];
+        const aim = state.aims[state.current];
+        const angle = aim.angle * Math.PI / 180;
+        const speed = aim.power * 7.2;
+        const origin = getLaunchOrigin(gorilla);
+        let x = origin.x;
+        let y = origin.y;
+        let vx = gorilla.dir * Math.cos(angle) * speed;
+        let vy = -Math.sin(angle) * speed;
+        const dt = .075;
+
+        ctx.save();
+        for (let i = 0; i < 18; i++) {
+          vx += state.wind * WIND_ACCEL * dt;
+          vy += state.gravity * dt;
+          x += vx * dt;
+          y += vy * dt;
+          if (i > 1 && solidAt(x, y)) break;
+          const alpha = .62 * (1 - i / 22);
+          ctx.fillStyle = `rgba(255,242,154,${alpha})`;
+          ctx.beginPath();
+          ctx.arc(x, y, Math.max(1.5, 4 - i * .11), 0, TWO_PI);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawGorilla(gorilla, index) {
+        const active = state.current === index && state.phase === 'aim';
+        const throwAmount = state.throwAnim[index];
+        const hitAmount = state.hitAnim[index];
+        const accent = index === 0 ? '#55d6ff' : '#ff668f';
+        const body = '#171621';
+        const muzzle = '#65564a';
+
+        ctx.save();
+        ctx.translate(gorilla.x, gorilla.y);
+        if (hitAmount > 0) {
+          ctx.rotate(Math.sin(performance.now() * .03) * hitAmount * .16);
+          ctx.translate(0, hitAmount * 5);
+        }
+        ctx.scale(gorilla.dir, 1);
+
+        if (active) {
+          ctx.strokeStyle = 'rgba(255,232,105,.75)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(0, -30, 35 + Math.sin(performance.now() * .006) * 2, 0, TWO_PI);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = 'rgba(0,0,0,.27)';
+        ctx.beginPath();
+        ctx.ellipse(0, 2, 31, 8, 0, 0, TWO_PI);
+        ctx.fill();
+
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.ellipse(-12, -7, 12, 14, -.15, 0, TWO_PI);
+        ctx.ellipse(12, -7, 12, 14, .15, 0, TWO_PI);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.ellipse(0, -29, 27, 28, 0, 0, TWO_PI);
+        ctx.fill();
+
+        const armLift = throwAmount > 0 ? Math.sin(throwAmount * Math.PI) : 0;
+        ctx.save();
+        ctx.translate(17, -35);
+        ctx.rotate(-.1 - armLift * 1.4);
+        ctx.fillStyle = body;
+        roundedRect(ctx, -3, -3, 15, 37, 8);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(-18, -35);
+        ctx.rotate(.17);
+        ctx.fillStyle = body;
+        roundedRect(ctx, -11, -3, 15, 38, 8);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.arc(0, -50, 19, 0, TWO_PI);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(-16, -52, 7, 0, TWO_PI);
+        ctx.arc(16, -52, 7, 0, TWO_PI);
+        ctx.fill();
+
+        ctx.fillStyle = muzzle;
+        ctx.beginPath();
+        ctx.ellipse(5, -46, 13, 10, 0, 0, TWO_PI);
+        ctx.fill();
+
+        ctx.fillStyle = '#f2ead7';
+        ctx.beginPath();
+        ctx.arc(-5, -55, 3.2, 0, TWO_PI);
+        ctx.arc(7, -55, 3.2, 0, TWO_PI);
+        ctx.fill();
+        ctx.fillStyle = '#11131a';
+        ctx.beginPath();
+        ctx.arc(-4.3, -55, 1.5, 0, TWO_PI);
+        ctx.arc(7.7, -55, 1.5, 0, TWO_PI);
+        ctx.fill();
+
+        ctx.strokeStyle = '#1a1413';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(7, -44, 6, .15, 2.75);
+        ctx.stroke();
+
+        ctx.fillStyle = accent;
+        roundedRect(ctx, -24, -31, 48, 7, 3.5);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawForegroundCover() {
+        const drawn = new Set();
+        for (const gorilla of state.gorillas) {
+          const index = gorilla.coverIndex;
+          if (drawn.has(index)) continue;
+          drawn.add(index);
+          const building = state.buildings[index];
+          if (!building) continue;
+          const sx = clamp(Math.floor(building.x - 2), 0, W);
+          const sy = clamp(Math.floor(building.top - 2), 0, H);
+          const sw = clamp(Math.ceil(building.width + 4), 0, W - sx);
+          const sh = clamp(Math.ceil(GROUND_Y - sy + 4), 0, H - sy);
+          if (sw > 0 && sh > 0) ctx.drawImage(terrainCanvas, sx, sy, sw, sh, sx, sy, sw, sh);
+        }
+      }
+
+      function drawProjectile() {
+        const p = state.projectile;
+        if (!p) return;
+
+        ctx.save();
+        for (const point of p.trail) {
+          ctx.globalAlpha = clamp(point.life, 0, 1) * .36;
+          ctx.fillStyle = '#ffe85c';
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 3.4 * point.life, 0, TWO_PI);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(Math.atan2(p.vy, p.vx) + Math.PI / 2 + p.spin);
+        ctx.strokeStyle = '#ffe44d';
+        ctx.lineWidth = 6;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(3, 0, 10, .6, 2.9);
+        ctx.stroke();
+        ctx.strokeStyle = '#7d5a18';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-6, 6);
+        ctx.lineTo(-10, 9);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawExplosions() {
+        for (const explosion of state.explosions) {
+          const t = explosion.age / explosion.life;
+          const radius = explosion.maxR * Math.sin(Math.min(1, t) * Math.PI * .72);
+          const outer = ctx.createRadialGradient(explosion.x, explosion.y, 0, explosion.x, explosion.y, Math.max(1, radius));
+          outer.addColorStop(0, `rgba(255,255,215,${1 - t})`);
+          outer.addColorStop(.28, `rgba(255,211,78,${.95 - t * .6})`);
+          outer.addColorStop(.66, `rgba(255,84,55,${.8 - t * .7})`);
+          outer.addColorStop(1, 'rgba(77,44,66,0)');
+          ctx.fillStyle = outer;
+          ctx.beginPath();
+          ctx.arc(explosion.x, explosion.y, radius, 0, TWO_PI);
+          ctx.fill();
+        }
+      }
+
+      function drawParticles() {
+        ctx.save();
+        for (const particle of state.particles) {
+          ctx.globalAlpha = clamp(particle.life / Math.min(.8, particle.maxLife || .8), 0, 1);
+          ctx.fillStyle = particle.color;
+          if (particle.shape === 'chunk') {
+            ctx.save();
+            ctx.translate(particle.x, particle.y);
+            ctx.rotate(particle.rotation || 0);
+            const scale = clamp(particle.life + .28, .28, 1);
+            ctx.fillRect(-particle.size * .55, -particle.size * .35, particle.size * 1.1 * scale, particle.size * .7 * scale);
+            ctx.restore();
+          } else {
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size * clamp(particle.life + .2, .2, 1), 0, TWO_PI);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
+
+      function drawHud() {
+        const topY = 18;
+        drawScoreCard(22, topY, 272, 82, 0, '#55d6ff');
+        drawScoreCard(W - 294, topY, 272, 82, 1, '#ff668f');
+
+        ctx.save();
+        roundedRect(ctx, W / 2 - 252, topY, 504, 82, 18);
+        ctx.fillStyle = 'rgba(8,11,29,.78)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.12)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffd84a';
+        ctx.font = '900 13px system-ui, sans-serif';
+        ctx.fillText(`MANCHE ${state.round} · PREMIER À ${state.targetScore}`, W / 2, topY + 23);
+
+        const strength = Math.abs(state.wind);
+        const tier = strength <= 2 ? 'CALME' : strength <= 7 ? 'BRISE' : strength <= 13 ? 'SOUTENU' : 'VIOLENT';
+        const arrowCount = strength <= 2 ? 0 : Math.max(1, Math.ceil(strength / 6));
+        const arrows = arrowCount ? (state.wind < 0 ? '◀'.repeat(arrowCount) : '▶'.repeat(arrowCount)) : '';
+        const windText = strength <= 2 ? 'VENT CALME' : `VENT ${tier} · ${strength} ${arrows}`;
+        ctx.save();
+        ctx.translate(W / 2, topY + 42);
+        const pulseScale = 1 + state.windPulse * .08;
+        ctx.scale(pulseScale, pulseScale);
+        ctx.fillStyle = strength >= 14 ? '#ffcf58' : '#f7f3df';
+        ctx.font = '850 18px system-ui, sans-serif';
+        ctx.fillText(windText, 0, 0);
+        ctx.restore();
+        drawWindGauge(W / 2, topY + 55, 210);
+
+        const status = state.messageTimer > 0 ? state.message : defaultStatus();
+        ctx.fillStyle = '#bdc3dc';
+        ctx.font = '650 12px system-ui, sans-serif';
+        ctx.fillText(truncate(status, 68), W / 2, topY + 74);
+        ctx.restore();
+      }
+
+      function drawWindGauge(centerX, y, width) {
+        const half = width / 2;
+        const endX = centerX + state.wind / MAX_WIND * half;
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgba(255,255,255,.14)';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(centerX - half, y);
+        ctx.lineTo(centerX + half, y);
+        ctx.stroke();
+        ctx.strokeStyle = '#ffd84a';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(centerX, y);
+        ctx.lineTo(endX, y);
+        ctx.stroke();
+        ctx.fillStyle = '#f7f3df';
+        ctx.beginPath();
+        ctx.arc(centerX, y, 3, 0, TWO_PI);
+        ctx.fill();
+        if (Math.abs(state.wind) > 2) {
+          ctx.fillStyle = '#ffd84a';
+          ctx.beginPath();
+          if (state.wind > 0) {
+            ctx.moveTo(endX + 8, y);
+            ctx.lineTo(endX - 2, y - 6);
+            ctx.lineTo(endX - 2, y + 6);
+          } else {
+            ctx.moveTo(endX - 8, y);
+            ctx.lineTo(endX + 2, y - 6);
+            ctx.lineTo(endX + 2, y + 6);
+          }
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawScoreCard(x, y, w, h, index, accent) {
+        const isTurn = state.current === index && state.phase === 'aim';
+        ctx.save();
+        roundedRect(ctx, x, y, w, h, 18);
+        ctx.fillStyle = 'rgba(8,11,29,.78)';
+        ctx.fill();
+        ctx.strokeStyle = isTurn ? accent : 'rgba(255,255,255,.12)';
+        ctx.lineWidth = isTurn ? 3 : 1;
+        ctx.stroke();
+
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.arc(x + 31, y + 29, 9, 0, TWO_PI);
+        ctx.fill();
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#f7f3df';
+        ctx.font = '850 18px system-ui, sans-serif';
+        ctx.fillText(truncate(state.names[index], 19), x + 50, y + 35);
+        ctx.fillStyle = '#aeb5d0';
+        ctx.font = '750 12px system-ui, sans-serif';
+        ctx.fillText(isTurn ? 'EN JEU' : (state.mode === 'ai' && index === 1 ? 'ORDINATEUR' : `JOUEUR ${index + 1}`), x + 50, y + 56);
+
+        ctx.textAlign = 'right';
+        ctx.fillStyle = accent;
+        ctx.font = '950 42px system-ui, sans-serif';
+        ctx.fillText(String(state.scores[index]), x + w - 22, y + 57);
+        ctx.restore();
+      }
+
+      function defaultStatus() {
+        if (state.phase === 'flying') return 'La physique fait son sale boulot.';
+        if (state.phase === 'pause') return 'Constat des dégâts en cours.';
+        if (state.mode === 'ai' && state.current === 1) return 'Calcul balistique du gorille mécanique.';
+        return `${state.names[state.current]} règle son tir.`;
+      }
+
+      function truncate(text, length) {
+        const value = String(text);
+        return value.length > length ? value.slice(0, length - 1) + '…' : value;
+      }
+
+      function ensureAudio() {
+        if (!state.sound) return null;
+        if (!state.audioContext) {
+          const AudioCtor = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtor) return null;
+          state.audioContext = new AudioCtor();
+        }
+        if (state.audioContext.state === 'suspended') state.audioContext.resume();
+        return state.audioContext;
+      }
+
+      function tone(startFreq, endFreq, duration, type = 'sine', volume = .08) {
+        const audio = ensureAudio();
+        if (!audio) return;
+        const oscillator = audio.createOscillator();
+        const gain = audio.createGain();
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(startFreq, audio.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), audio.currentTime + duration);
+        gain.gain.setValueAtTime(volume, audio.currentTime);
+        gain.gain.exponentialRampToValueAtTime(.0001, audio.currentTime + duration);
+        oscillator.connect(gain).connect(audio.destination);
+        oscillator.start();
+        oscillator.stop(audio.currentTime + duration);
+      }
+
+      function playLaunchSound() {
+        tone(330, 90, .22, 'triangle', .08);
+      }
+
+      function playExplosionSound(big) {
+        tone(big ? 92 : 120, 28, big ? .55 : .36, 'sawtooth', big ? .12 : .08);
+        setTimeout(() => tone(big ? 180 : 220, 45, .25, 'square', .035), 35);
+      }
+
+      modeSelect.addEventListener('change', () => {
+        const ai = modeSelect.value === 'ai';
+        nameTwo.disabled = ai;
+        nameTwo.value = ai ? 'Gorille mécanique' : (nameTwo.value === 'Gorille mécanique' ? 'Joueur 2' : nameTwo.value);
+      });
+
+      angleRange.addEventListener('input', () => {
+        if (!humanCanAct()) return;
+        state.aims[state.current].angle = Number(angleRange.value);
+        syncControls();
+      });
+
+      powerRange.addEventListener('input', () => {
+        if (!humanCanAct()) return;
+        state.aims[state.current].power = Number(powerRange.value);
+        syncControls();
+      });
+
+      startButton.addEventListener('click', () => startGame(true));
+      replayButton.addEventListener('click', () => startGame(true));
+      menuButton.addEventListener('click', showMenu);
+      quitButton.addEventListener('click', showMenu);
+      fireButton.addEventListener('click', launchProjectile);
+      soundButton.addEventListener('click', () => {
+        state.sound = !state.sound;
+        soundButton.textContent = state.sound ? '🔊' : '🔇';
+        if (state.sound) tone(440, 660, .12, 'sine', .04);
+      });
+
+      window.addEventListener('keydown', event => {
+        if (!humanCanAct()) return;
+        let handled = true;
+        const aim = state.aims[state.current];
+        switch (event.key) {
+          case 'ArrowUp': aim.angle = clamp(aim.angle + 1, 10, 85); break;
+          case 'ArrowDown': aim.angle = clamp(aim.angle - 1, 10, 85); break;
+          case 'ArrowRight': aim.power = clamp(aim.power + 2, 25, 120); break;
+          case 'ArrowLeft': aim.power = clamp(aim.power - 2, 25, 120); break;
+          case ' ': launchProjectile(); break;
+          default: handled = false;
+        }
+        if (handled) {
+          event.preventDefault();
+          syncControls();
+        }
+      }, { passive: false });
+
+      function frame(now) {
+        const dt = Math.min(.034, Math.max(0, (now - state.lastTime) / 1000));
+        state.lastTime = now;
+        update(dt);
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      initBackdrop();
+      generateDistantCity();
+      generateCity();
+      draw();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

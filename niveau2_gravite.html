@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>Niveau 2 — La découverte de la gravité</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600;700&display=swap');
+    :root {
+      color-scheme: dark;
+      --bronze: #cd7f32; --amber: #ffd24a; --sepia: #d0a878; --parch: #efe2c8;
+      --ink: #f5ede4; --muted: #b3aa98; --void: #0a0a12; --panel: rgba(26,20,32,.94);
+      --line: rgba(255,255,255,.12); --green: #6ee7a8; --sky: #5ec1ff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Rajdhani', sans-serif; color: var(--ink);
+      background: radial-gradient(circle at 50% -10%, #2a2342 0, #14101f 45%, #07060d 100%);
+      min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; padding: clamp(14px,3vw,40px); }
+    .app { width: min(820px, 100%); background: var(--panel); border: 1px solid var(--line);
+      border-radius: 18px; padding: clamp(20px, 4vw, 38px); box-shadow: 0 22px 60px rgba(0,0,0,.45); position: relative; overflow: hidden; }
+    .app::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: linear-gradient(90deg, var(--sepia), var(--amber), var(--bronze)); }
+    .eyebrow { color: var(--amber); font-weight: 900; letter-spacing: .18em; text-transform: uppercase; font-size: .76rem; margin-bottom: 8px; }
+    h1, h2, h3 { font-family: 'Orbitron', sans-serif; }
+    h1 { font-size: clamp(1.5rem, 4.5vw, 2.3rem); line-height: 1.05; text-transform: uppercase; letter-spacing: -.01em; }
+    h2 { color: var(--parch); font-size: 1.2rem; margin-bottom: 12px; border-bottom: 1px solid var(--sepia); padding-bottom: 6px; }
+    h3 { color: var(--sepia); font-size: 1.1rem; margin-bottom: 10px; }
+    p { line-height: 1.6; font-size: 1.08rem; margin-bottom: 14px; color: #e7ddcf; }
+    p strong { color: var(--ink); }
+    .lead { color: var(--muted); }
+    .card { background: rgba(0,0,0,.34); border-left: 4px solid var(--amber); padding: 18px 20px; border-radius: 6px; margin-bottom: 18px; }
+    .btn { font: inherit; cursor: pointer; border: 1px solid var(--amber); background: transparent; color: var(--amber);
+      padding: 13px 20px; border-radius: 10px; font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: .95rem;
+      text-transform: uppercase; letter-spacing: .06em; width: 100%; margin-top: 8px; transition: .2s; }
+    .btn:hover { background: var(--amber); color: var(--void); box-shadow: 0 0 18px rgba(255,210,74,.35); }
+    .btn.ghost { border-color: var(--line); color: var(--ink); }
+    .btn.ghost:hover { background: rgba(255,255,255,.08); color: var(--ink); box-shadow: none; }
+    .choice { font: inherit; cursor: pointer; display: block; width: 100%; text-align: left; color: var(--ink);
+      background: rgba(255,255,255,.04); border: 1px solid var(--sepia); border-radius: 8px; padding: 14px 16px;
+      margin-bottom: 10px; font-size: 1.05rem; transition: .15s; }
+    .choice:hover { background: rgba(255,210,74,.14); border-color: var(--amber); }
+    .choice.good { background: rgba(110,231,168,.16); border-color: var(--green); }
+    .choice.bad { background: rgba(255,107,87,.16); border-color: #ff6b57; }
+    .progress { height: 4px; background: rgba(255,255,255,.08); border-radius: 2px; margin-bottom: 18px; overflow: hidden; }
+    .progress > span { display: block; height: 100%; background: var(--amber); transition: width .3s; }
+    .feedback { font-weight: 700; margin: 4px 0 14px; min-height: 1.2em; }
+    .feedback.ok { color: var(--green); } .feedback.no { color: #ff8a78; }
+    .demo-wrap { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #0a1226; margin-bottom: 14px; }
+    canvas { display: block; width: 100%; height: auto; }
+    .demo-ctrl { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+    .demo-ctrl .btn { width: auto; margin: 0; }
+    .switch { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 1rem; cursor: pointer; }
+    .switch input { width: 18px; height: 18px; accent-color: var(--amber); }
+    .demo-note { color: var(--sky); font-weight: 700; min-height: 1.3em; }
+    .badge-done { text-align: center; font-size: 3rem; margin: 6px 0; }
+    .muted-small { color: var(--muted); font-size: .85rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <main class="app" id="app"></main>
+
+  <script src="bb_save.js"></script>
+  <script>
+    (() => {
+      'use strict';
+      const app = document.getElementById('app');
+      const state = { step: 'intro', card: 0, q: 0, score: 0 };
+
+      const owner = (window.BB && BB.getOwner && BB.getOwner()) || 'Chevalier';
+
+      const CARDS = [
+        { t: "Aristote et l'erreur tenace", h: "≈ -350 avant J.-C.",
+          x: "Pendant près de <strong>2000 ans</strong>, on a cru le philosophe Aristote : un objet <strong>lourd tomberait plus vite</strong> qu'un objet léger. Ça paraît évident… et c'est <strong>faux</strong>. Personne n'avait vraiment vérifié." },
+        { t: "Galilée renverse tout", h: "≈ 1600",
+          x: "Galilée fait l'expérience (plans inclinés à l'appui, et la fameuse légende de la <strong>tour de Pise</strong>) : sans air, <strong>tous les corps tombent à la même vitesse</strong>, quelle que soit leur masse. En 1971, sur la <strong>Lune</strong> (donc sans air), l'astronaute Dave Scott lâche un marteau et une plume : ils touchent le sol <strong>ensemble</strong>." },
+        { t: "Newton et la pomme", h: "1687",
+          x: "Newton comprend que la force qui fait tomber la pomme est <strong>la même</strong> qui retient la Lune autour de la Terre : la <strong>gravitation universelle</strong>. Sur Terre, elle impose à tout ce qui tombe une accélération constante <strong>g ≈ 9,8 m/s²</strong>." },
+        { t: "Et ta banane là-dedans ?", h: "Maintenant",
+          x: "Cette accélération constante vers le bas, c'est <strong>exactement</strong> le paramètre <em>gravité</em> de ton jeu. C'est elle qui courbe chaque tir en <strong>parabole</strong>. Comprendre la gravité, c'est comprendre pourquoi tu dois viser <strong>au-dessus</strong> de ta cible." }
+      ];
+
+      const QUIZ = [
+        { q: "Sans air, lequel touche le sol en premier : une boule de pétanque ou une bille ?",
+          o: ["La boule de pétanque (plus lourde)", "La bille (plus légère)", "Les deux exactement en même temps"], a: 2 },
+        { q: "Qui a montré que tous les corps tombent à la même vitesse ?",
+          o: ["Aristote", "Galilée", "Personne, c'est faux"], a: 1 },
+        { q: "Dans ton jeu, le paramètre qui courbe la banane vers le bas, c'est…",
+          o: ["le vent", "la gravité (g)", "la puissance"], a: 1 }
+      ];
+
+      function bar(cur, tot) { return `<div class="progress"><span style="width:${Math.round(cur/tot*100)}%"></span></div>`; }
+
+      function render() {
+        if (state.step === 'intro') return renderIntro();
+        if (state.step === 'cards') return renderCards();
+        if (state.step === 'demo') return renderDemo();
+        if (state.step === 'quiz') return renderQuiz();
+        if (state.step === 'done') return renderDone();
+      }
+
+      function renderIntro() {
+        app.innerHTML =
+          `<p class="eyebrow">Niveau 2 · PIX Sciences · Cours-jeu</p>
+           <h1>La découverte<br>de la gravité</h1>
+           <p class="lead" style="margin-top:14px">Salut, <strong style="color:var(--amber)">${owner}</strong>. Tu sais déjà <em>canonner</em> une banane. Mais sais-tu <strong>pourquoi</strong> elle retombe en arc de cercle ? Avant de débloquer Worms, rencontrons les trois génies qui ont percé le secret de la chute des corps.</p>
+           <button class="btn" id="go">Ouvrir le dossier</button>`;
+        document.getElementById('go').onclick = () => { state.step = 'cards'; state.card = 0; render(); };
+      }
+
+      function renderCards() {
+        const c = CARDS[state.card];
+        app.innerHTML =
+          bar(state.card + 1, CARDS.length) +
+          `<h2>Dossier ${state.card + 1} / ${CARDS.length}</h2>
+           <h3>${c.t} <span style="color:var(--muted);font-size:.8rem;font-family:'Rajdhani'">· ${c.h}</span></h3>
+           <div class="card"><p style="margin:0">${c.x}</p></div>
+           <button class="btn" id="next">${state.card < CARDS.length - 1 ? 'Dossier suivant' : "Passer à l'expérience"}</button>`;
+        document.getElementById('next').onclick = () => {
+          if (state.card < CARDS.length - 1) { state.card++; render(); }
+          else { state.step = 'demo'; render(); }
+        };
+      }
+
+      function renderDemo() {
+        app.innerHTML =
+          `<h2>L'expérience de Galilée</h2>
+           <p>Lâche les deux objets — une boule <strong>lourde</strong> et une bille <strong>légère</strong>. Observe qui gagne.</p>
+           <div class="demo-wrap"><canvas id="demoCv" width="720" height="320"></canvas></div>
+           <div class="demo-ctrl">
+             <button class="btn" id="drop" style="min-width:160px">⬇ Lâcher !</button>
+             <button class="btn ghost" id="resetDemo" style="width:auto">↺ Recommencer</button>
+             <label class="switch"><input type="checkbox" id="airTog"> Simuler l'air</label>
+           </div>
+           <p class="demo-note" id="demoNote">Sans air : ils tomberont exactement ensemble.</p>
+           <button class="btn" id="toQuiz">J'ai compris — au quiz</button>`;
+        setupDemo();
+        document.getElementById('toQuiz').onclick = () => { state.step = 'quiz'; state.q = 0; state.score = 0; render(); };
+      }
+
+      function setupDemo() {
+        const cv = document.getElementById('demoCv');
+        const ctx = cv.getContext('2d');
+        const W = cv.width, H = cv.height, groundY = H - 30;
+        const air = document.getElementById('airTog');
+        const note = document.getElementById('demoNote');
+        let balls, running, raf, last;
+
+        function reset() {
+          cancelAnimationFrame(raf); running = false;
+          balls = [
+            { x: W * 0.34, y: 60, r: 20, vy: 0, color: '#c9783b', label: 'Lourde', drag: 0.0 },
+            { x: W * 0.66, y: 60, r: 9, vy: 0, color: '#9fd0ff', label: 'Légère', drag: 0.0 }
+          ];
+          note.textContent = air.checked ? "Avec l'air : la légère va traîner (résistance)." : "Sans air : ils tomberont exactement ensemble.";
+          note.style.color = air.checked ? '#ffd24a' : 'var(--sky)';
+          draw();
+        }
+        function draw() {
+          ctx.clearRect(0, 0, W, H);
+          // sol
+          ctx.fillStyle = '#1d2b1c'; ctx.fillRect(0, groundY, W, H - groundY);
+          ctx.fillStyle = 'rgba(255,255,255,.06)'; ctx.fillRect(0, groundY, W, 3);
+          // repère hauteur
+          ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1;
+          for (let gy = 60; gy < groundY; gy += 50) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
+          balls.forEach(b => {
+            ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(b.x, groundY + 5, b.r, 4, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#eee'; ctx.font = "600 13px Rajdhani, sans-serif"; ctx.textAlign = 'center';
+            ctx.fillText(b.label, b.x, b.y - b.r - 7);
+          });
+        }
+        function step(now) {
+          if (!running) return;
+          const dt = Math.min(0.032, (now - last) / 1000); last = now;
+          const g = 900; // px/s²
+          let allLanded = true;
+          balls.forEach((b, i) => {
+            if (b.y + b.r >= groundY) { b.y = groundY - b.r; return; }
+            allLanded = false;
+            let a = g;
+            if (air.checked && i === 1) a = g * 0.45; // la légère freinée par l'air
+            b.vy += a * dt; b.y += b.vy * dt;
+            if (b.y + b.r > groundY) { b.y = groundY - b.r; b.vy = 0; }
+          });
+          draw();
+          if (allLanded) {
+            running = false;
+            if (air.checked) { note.textContent = "👀 Avec l'air, la légère arrive en retard — l'illusion d'Aristote !"; note.style.color = '#ffd24a'; }
+            else { note.textContent = "✅ Pile ensemble ! La masse ne change rien à la chute."; note.style.color = 'var(--green)'; }
+            return;
+          }
+          raf = requestAnimationFrame(step);
+        }
+        document.getElementById('drop').onclick = () => { if (running) return; running = true; last = performance.now(); raf = requestAnimationFrame(step); };
+        document.getElementById('resetDemo').onclick = reset;
+        air.onchange = reset;
+        reset();
+      }
+
+      function renderQuiz() {
+        const item = QUIZ[state.q];
+        app.innerHTML =
+          bar(state.q + 1, QUIZ.length) +
+          `<h2>Vérification</h2>
+           <p style="color:var(--amber);font-size:1.2rem">${item.q}</p>
+           <div id="opts"></div>
+           <p class="feedback" id="fb"></p>`;
+        const opts = document.getElementById('opts');
+        item.o.forEach((txt, i) => {
+          const b = document.createElement('button');
+          b.className = 'choice'; b.textContent = txt;
+          b.onclick = () => answer(i, b);
+          opts.appendChild(b);
+        });
+      }
+
+      function answer(i, btn) {
+        const item = QUIZ[state.q];
+        const fb = document.getElementById('fb');
+        document.querySelectorAll('#opts .choice').forEach(el => el.disabled = true);
+        if (i === item.a) {
+          btn.classList.add('good'); state.score++;
+          fb.className = 'feedback ok'; fb.textContent = '✅ Exact !';
+        } else {
+          btn.classList.add('bad');
+          document.querySelectorAll('#opts .choice')[item.a].classList.add('good');
+          fb.className = 'feedback no'; fb.textContent = '❌ Raté — la bonne réponse est en vert.';
+        }
+        const next = document.createElement('button');
+        next.className = 'btn'; next.textContent = state.q < QUIZ.length - 1 ? 'Question suivante' : 'Terminer le niveau';
+        next.onclick = () => { if (state.q < QUIZ.length - 1) { state.q++; render(); } else { finish(); } };
+        app.appendChild(next);
+      }
+
+      function finish() {
+        if (window.BB && typeof BB.markDone === 'function') {
+          BB.markDone('N2', { quiz: state.score + '/' + QUIZ.length });
+        }
+        state.step = 'done'; render();
+      }
+
+      function renderDone() {
+        app.innerHTML =
+          `<p class="eyebrow">Niveau 2 validé</p>
+           <div class="badge-done">🍎➡️🪱</div>
+           <h1>Gravité maîtrisée !</h1>
+           <p style="margin-top:14px">Score au quiz : <strong>${state.score} / ${QUIZ.length}</strong>. Tu sais maintenant <strong>pourquoi</strong> tes tirs retombent : l'accélération <strong>g</strong>, la même pour la pomme, la Lune et ta banane.</p>
+           <p><strong style="color:var(--green)">🪱 Niveau 3 — Worms Balistique — débloqué.</strong> Plusieurs soldats, des armes, et toujours du décor à pulvériser.</p>
+           <button class="btn" id="back">Retour au QG</button>
+           <p class="muted-small" style="margin-top:10px">Progression enregistrée dans ton édition.</p>`;
+        document.getElementById('back').onclick = () => { window.location.href = 'index_Balistique.html'; };
+      }
+
+      render();
+    })();
+  </script>
+</body>
+</html>
