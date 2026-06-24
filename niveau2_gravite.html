@@ -55,6 +55,16 @@
     .demo-note { color: var(--sky); font-weight: 700; min-height: 1.3em; }
     .badge-done { text-align: center; font-size: 3rem; margin: 6px 0; }
     .muted-small { color: var(--muted); font-size: .85rem; text-align: center; }
+    button, input, .choice, .switch { touch-action: manipulation; }
+    @media (max-width: 620px) {
+      body { min-height: 100dvh; padding: 10px; }
+      .app { border-radius: 14px; padding: 18px 14px; }
+      p { font-size: 1rem; }
+      .btn, .choice { min-height: 48px; }
+      .demo-ctrl { display: grid; grid-template-columns: 1fr; align-items: stretch; }
+      .demo-ctrl .btn { width: 100%; }
+      .switch { min-height: 44px; }
+    }
   </style>
 </head>
 <body>
@@ -250,7 +260,7 @@
            <p><strong style="color:var(--green)">🪱 Niveau 3 — Worms Balistique — débloqué.</strong> Plusieurs soldats, des armes, et toujours du décor à pulvériser.</p>
            <button class="btn" id="back">Retour au QG</button>
            <p class="muted-small" style="margin-top:10px">Progression enregistrée dans ton édition.</p>`;
-        document.getElementById('back').onclick = () => { window.location.href = 'index_Balistique.html'; };
+        document.getElementById('back').onclick = () => { window.location.href = 'index.html'; };
       }
 
       render();
