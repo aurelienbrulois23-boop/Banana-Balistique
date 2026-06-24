@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#10142b" />
+  <title>Banana Balistique — Académie</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f7f3df;
+      --muted: #b9bfd5;
+      --panel: rgba(13, 17, 39, 0.92);
+      --line: rgba(255, 255, 255, 0.13);
+      --gold: #ffd84a;
+      --p1: #55d6ff;
+      --p2: #ff668f;
+      --green: #6ee7a8;
+      --danger: #ff6b57;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: radial-gradient(circle at 50% -20%, #313866 0, #171b38 38%, #090c1c 100%);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body { padding: clamp(14px, 3vw, 40px); }
+    .wrap { width: min(1080px, 100%); margin: 0 auto; display: grid; gap: 22px; }
+    button, input { font: inherit; }
+
+    /* HEADER */
+    .hero { text-align: center; }
+    .eyebrow {
+      margin: 0 0 6px; color: var(--gold); font-size: .78rem; font-weight: 900;
+      letter-spacing: .2em; text-transform: uppercase;
+    }
+    h1 {
+      margin: 0; font-size: clamp(2.1rem, 7vw, 4.4rem); line-height: .92;
+      letter-spacing: -.05em; text-transform: uppercase; text-shadow: 0 4px 0 rgba(0,0,0,.2);
+    }
+    h1 .banana { color: var(--gold); }
+    .hero .tagline { color: var(--muted); margin: 14px auto 0; max-width: 60ch; line-height: 1.55; }
+
+    /* SAVE BAR */
+    .savebar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+      padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px;
+      background: var(--panel); box-shadow: 0 14px 40px rgba(0,0,0,.28);
+    }
+    .savebar .who { display: flex; align-items: center; gap: 8px; flex: 1 1 240px; min-width: 0; }
+    .savebar label { color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+    .savebar input[type=text] {
+      flex: 1; min-width: 120px; border: 1px solid var(--line); border-radius: 10px;
+      padding: 9px 11px; background: rgba(2,5,18,.55); color: var(--ink); outline: none;
+    }
+    .savebar input[type=text]:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,216,74,.14); }
+    .save-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      border: 1px solid var(--line); border-radius: 11px; padding: 9px 14px; cursor: pointer;
+      background: rgba(255,255,255,.08); color: var(--ink); font-weight: 700; letter-spacing: .02em;
+      transition: transform .12s ease, filter .12s ease, background .12s ease;
+    }
+    .btn:hover { filter: brightness(1.12); }
+    .btn:active { transform: translateY(1px); }
+    .btn.gold { background: linear-gradient(180deg, #ffe46d, #ffc82f); color: #111525; border-color: transparent; font-weight: 850; }
+    .btn.ghost-danger { color: #ffb4a8; border-color: rgba(255,107,87,.4); background: rgba(255,107,87,.08); }
+
+    /* CARD GENERIC */
+    .card {
+      border: 1px solid var(--line); border-radius: 20px; background: var(--panel);
+      box-shadow: 0 18px 50px rgba(0,0,0,.3); padding: clamp(18px, 3vw, 30px);
+    }
+    .card h2 {
+      margin: 0 0 12px; font-size: 1.15rem; letter-spacing: .04em; text-transform: uppercase;
+      color: var(--gold); display: flex; align-items: center; gap: 10px;
+    }
+    .tribute p { color: #d7dbee; line-height: 1.62; margin: 0 0 13px; }
+    .tribute p:last-child { margin-bottom: 0; }
+    .tribute strong { color: var(--ink); }
+    .tribute .fact {
+      border-left: 3px solid var(--gold); padding: 6px 0 6px 14px; margin: 16px 0;
+      color: var(--muted); font-style: italic;
+    }
+    .tribute code { font-family: ui-monospace, "Share Tech Mono", monospace; color: var(--gold); font-style: normal; }
+
+    /* LADDER */
+    .ladder-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .ladder-head h2 { color: var(--ink); text-transform: uppercase; letter-spacing: .04em; font-size: 1.05rem; margin: 0; }
+    .ladder-progress { color: var(--muted); font-size: .82rem; font-weight: 700; }
+    .ladder { display: grid; gap: 14px; margin-top: 16px; }
+
+    .level {
+      display: grid; grid-template-columns: 60px 1fr auto; align-items: center; gap: 16px;
+      padding: 16px; border: 1px solid var(--line); border-radius: 16px;
+      background: rgba(255,255,255,.025); transition: border-color .2s ease, background .2s ease;
+    }
+    .level .icon {
+      width: 60px; height: 60px; display: grid; place-items: center; font-size: 1.9rem;
+      border-radius: 14px; background: rgba(255,255,255,.05); border: 1px solid var(--line);
+    }
+    .level .body { min-width: 0; }
+    .level .ttl { font-weight: 850; font-size: 1.08rem; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    .level .rung { font-size: .72rem; font-weight: 900; color: #8e96b5; letter-spacing: .12em; }
+    .level .tag { color: var(--gold); font-size: .74rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; margin-top: 2px; }
+    .level .blurb { color: var(--muted); font-size: .9rem; line-height: 1.45; margin-top: 6px; }
+    .level .cta { display: grid; gap: 6px; justify-items: stretch; }
+    .badge {
+      font-size: .66rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
+      padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+    }
+    .badge.done { color: #0c2a1c; background: var(--green); }
+    .badge.open { color: #111525; background: var(--gold); }
+    .badge.soon { color: #ffd9a0; background: rgba(255,184,40,.15); border: 1px solid rgba(255,184,40,.35); }
+    .badge.locked { color: #8e96b5; background: rgba(255,255,255,.06); border: 1px solid var(--line); }
+
+    .play {
+      display: inline-block; text-align: center; text-decoration: none; min-width: 150px;
+      border-radius: 12px; padding: 11px 18px; font-weight: 850; letter-spacing: .03em;
+      background: linear-gradient(180deg, #ffe46d, #ffc82f); color: #111525;
+      box-shadow: 0 7px 0 #9c6610; transition: transform .12s ease, filter .12s ease;
+    }
+    .play:hover { filter: brightness(1.07); }
+    .play:active { transform: translateY(3px); box-shadow: 0 4px 0 #9c6610; }
+    .play.disabled { pointer-events: none; opacity: .4; filter: grayscale(.5); box-shadow: none; background: rgba(255,255,255,.1); color: var(--muted); }
+
+    .level.is-locked { opacity: .55; }
+    .level.is-done { border-color: rgba(110,231,168,.35); background: rgba(110,231,168,.05); }
+    .level.is-open { border-color: rgba(255,216,74,.4); }
+
+    .footnote { text-align: center; color: #8e96b5; font-size: .78rem; line-height: 1.5; }
+    .footnote a { color: var(--muted); }
+
+    /* TOAST */
+    #toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--panel); border: 1px solid var(--gold); color: var(--ink);
+      padding: 11px 20px; border-radius: 12px; font-size: .88rem; font-weight: 700;
+      opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 50; box-shadow: 0 12px 40px rgba(0,0,0,.4);
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 640px) {
+      .level { grid-template-columns: 48px 1fr; }
+      .level .icon { width: 48px; height: 48px; font-size: 1.5rem; }
+      .level .cta { grid-column: 1 / -1; grid-auto-flow: column; justify-content: start; align-items: center; gap: 10px; }
+      .play { min-width: 0; }
+    }
+
+    /* DÉDICACE · ENGRAMME · CRÉDITS */
+    .dedic-chip { color: var(--ink); font-size: .9rem; font-weight: 700; }
+    .dedic-chip strong { color: var(--gold); }
+
+    .auth-overlay {
+      position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
+      padding: clamp(14px, 4vw, 40px);
+      background: radial-gradient(circle at 50% -10%, rgba(49,56,102,.6), rgba(9,12,28,.94));
+      backdrop-filter: blur(10px);
+    }
+    .auth-overlay.hidden { display: none; }
+    .auth-box {
+      width: min(520px, 100%); padding: clamp(22px, 4vw, 38px);
+      border: 1px solid rgba(255,216,74,.4); border-radius: 24px;
+      background: linear-gradient(145deg, rgba(31,37,76,.97), rgba(13,17,39,.97));
+      box-shadow: 0 26px 80px rgba(0,0,0,.5);
+    }
+    .auth-title { margin: 4px 0 12px; font-size: clamp(1.6rem, 5vw, 2.3rem); line-height: 1; text-transform: uppercase; letter-spacing: -.02em; }
+    .auth-copy { color: #d7dbee; line-height: 1.6; margin: 0 0 18px; }
+    .auth-label { display: block; color: var(--muted); font-size: .74rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 7px; }
+    #authInput {
+      width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px;
+      background: rgba(2,5,18,.55); color: var(--ink); outline: none; font-size: 1.1rem;
+    }
+    #authInput:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,216,74,.16); }
+    .auth-note { color: #ffd9a0; font-size: .82rem; margin: 12px 0 16px; }
+    .auth-confirm { min-height: 50px; font-size: 1rem; }
+    .auth-or { text-align: center; color: var(--muted); font-size: .76rem; margin: 12px 0 0; }
+    .auth-import {
+      width: 100%; margin-top: 10px; background: rgba(255,255,255,.06);
+      color: var(--ink); border-color: var(--line); font-weight: 700;
+    }
+
+    .dedication-banner {
+      margin: 0; padding: 11px 16px; border: 1px solid rgba(255,216,74,.22);
+      border-radius: 12px; background: rgba(255,216,74,.06); color: #e6dcc0;
+      font-size: .86rem; line-height: 1.5; text-align: center;
+    }
+    .dedication-banner strong { color: var(--gold); }
+    .dedication-banner:empty { display: none; }
+
+    .session-pick { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .sess-label { color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .sess-select {
+      border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px;
+      background: rgba(2,5,18,.55); color: var(--ink); outline: none; max-width: 180px;
+    }
+    .sess-select:focus { border-color: var(--gold); }
+    .btn-mini { padding: 7px 10px; border-radius: 10px; }
+
+    .champion-badge {
+      margin: 0 0 16px; padding: 10px 14px; border-radius: 12px; text-align: center;
+      border: 1px solid rgba(255,216,74,.3); background: rgba(255,216,74,.08);
+      color: #ffe9a7; font-size: .82rem; font-weight: 700; line-height: 1.4;
+    }
+    .champion-badge:empty { display: none; }
+    .champion-badge strong { color: var(--gold); }
+
+    .hall { display: grid; gap: 8px; margin-top: 14px; }
+    .hall-row {
+      display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px;
+      padding: 11px 14px; border: 1px solid var(--line); border-radius: 12px;
+      background: rgba(255,255,255,.025);
+    }
+    .hall-row.current { border-color: rgba(255,216,74,.4); background: rgba(255,216,74,.06); }
+    .hall-saison { font-weight: 900; color: var(--gold); font-size: .82rem; letter-spacing: .04em; white-space: nowrap; }
+    .hall-pseudo { font-weight: 800; font-family: ui-monospace, "Share Tech Mono", monospace; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+    .hall-points { font-weight: 800; color: var(--green); font-family: ui-monospace, monospace; white-space: nowrap; }
+    .hall-empty { color: #8e96b5; font-size: .85rem; text-align: center; padding: 8px; }
+
+    #codeInput {
+      width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px;
+      background: rgba(2,5,18,.55); color: var(--ink); outline: none; font-size: 1rem;
+      font-family: ui-monospace, "Share Tech Mono", monospace; letter-spacing: .02em;
+    }
+    #codeInput:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,216,74,.16); }
+    .auth-error { color: var(--danger); font-size: .82rem; margin: 8px 0 0; min-height: 1em; }
+    .tier-chip {
+      font-size: .76rem; font-weight: 800; color: var(--ink); padding: 3px 10px;
+      border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.05); white-space: nowrap;
+    }
+
+    .credits { margin-top: 8px; text-align: center; display: grid; gap: 8px; }
+    .credit-line { margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.5; }
+    .credit-line strong { color: var(--ink); }
+    .credits .legal { margin: 0 auto; color: #7e87a6; font-size: .73rem; line-height: 1.55; max-width: 72ch; }
+    .credits .legal code { color: var(--gold); }
+  </style>
+</head>
+<body>
+
+  <!-- ÉCRAN D'ENGRAMME — première ouverture uniquement -->
+  <div id="authOverlay" class="auth-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div class="auth-box">
+      <p class="eyebrow">Trophée · Chevalier du Château Rance</p>
+      <h2 id="authTitle" class="auth-title">Entrée des champions</h2>
+      <div class="champion-badge" id="championBadge"></div>
+      <label class="auth-label" for="codeInput">Ton code de champion</label>
+      <input id="codeInput" type="text" placeholder="BBQ1-…" autocomplete="off" spellcheck="false" />
+      <button id="codeConfirm" class="btn gold auth-confirm">⚜️ Valider mon code et entrer</button>
+      <p class="auth-error" id="authError"></p>
+      <p class="auth-or">— ou, sans code : la démo —</p>
+      <label class="auth-label" for="authInput">Jouer Gorillas sous ton prénom</label>
+      <input id="authInput" type="text" maxlength="24" placeholder="Ex. Camille" autocomplete="off" />
+      <button id="authConfirm" class="btn auth-import">🎮 Entrer en mode démo</button>
+      <p class="auth-or">— ou —</p>
+      <button id="authImport" class="btn auth-import">📂 Importer ma sauvegarde</button>
+    </div>
+  </div>
+
+  <main class="wrap">
+
+    <header class="hero">
+      <p class="eyebrow">Académie d'artillerie · hommage &amp; cours-jeux</p>
+      <h1><span class="banana">Banana</span> Balistique</h1>
+      <p class="tagline">Ton quartier général. Gravis l'échelle des niveaux : des duels d'artillerie destructibles entrecoupés de cours-jeux PIX sur la physique de tes tirs. Chaque niveau réussi débloque le suivant — et tout reste accessible.</p>
+    </header>
+
+    <p class="dedication-banner" id="dedicationBanner"></p>
+
+    <section class="savebar" aria-label="Dédicace et sauvegarde">
+      <div class="who">
+        <span class="dedic-chip">🏅 Édition de <strong id="ownerName">—</strong></span>
+        <span class="tier-chip" id="tierChip"></span>
+        <span class="session-pick">
+          <label class="sess-label" for="sessionSelect">Session</label>
+          <select id="sessionSelect" class="sess-select" aria-label="Choisir la session de jeu"></select>
+          <button id="btnNewSession" class="btn btn-mini" title="Créer une nouvelle session pour un autre joueur">➕ Nouvelle</button>
+        </span>
+      </div>
+      <div class="save-actions">
+        <button id="btnDownload" class="btn gold" title="Télécharger ta progression dans un fichier .save">💾 Télécharger la sauvegarde</button>
+        <button id="btnImport" class="btn" title="Charger un fichier .save">📂 Importer</button>
+        <button id="btnReset" class="btn ghost-danger" title="Repartir de zéro">↺ Réinitialiser</button>
+        <input id="fileInput" type="file" accept=".save,.json,application/json" hidden />
+      </div>
+    </section>
+
+    <section class="card tribute">
+      <h2>🦍 Hommage à <em style="font-style:normal">Gorillas</em></h2>
+      <p><strong>Banana Balistique</strong> rend hommage à <strong>Gorillas</strong> (connu par le nom de son code source, <code>GORILLA.BAS</code>), un jeu d'artillerie au tour par tour distribué par <strong>Microsoft</strong> avec <strong>QBasic</strong> et <strong>MS-DOS 5.0, en 1991</strong>, comme programme de démonstration du langage.</p>
+      <p><strong>Le principe :</strong> deux gorilles, juchés sur les toits d'une ville, se lancent des bananes explosives. À chaque tour, on règle un <strong>angle</strong> et une <strong>vitesse</strong> ; la trajectoire subit la <strong>gravité</strong> et le <strong>vent</strong> (affiché par une flèche). Les immeubles s'abîment sous les impacts. Toucher l'adversaire marque un point ; le premier au score cible remporte la ville. Détail culte : le <strong>soleil</strong> au centre prend un air ahuri quand on le touche.</p>
+      <p class="fact">Fait rigoureux : <code>GORILLA.BAS</code> a accompagné des centaines de millions de PC dans les années 1990, mais <strong>son auteur n'a jamais été officiellement crédité</strong> — c'était du code-exemple Microsoft, et Wikipédia ne nomme aucun programmeur. Le genre « artillerie » lui-même remonte aux années 1970-80, et Gorillas est l'ancêtre spirituel de <strong>Worms</strong> (1995), que tu croiseras plus haut dans l'échelle.</p>
+      <p><strong>Comment marche cette académie :</strong> le <strong>Niveau 1</strong> ci-dessous, c'est le jeu de base. Gagne un match pour débloquer le niveau suivant — en alternant <strong>cours-jeux PIX</strong> (la gravité avec Galilée &amp; Newton, puis les vraies formules balistiques) et des <strong>versions de jeu</strong> de plus en plus exigeantes, jusqu'au tir calculé. Pense à <strong>télécharger ta sauvegarde</strong> pour reprendre où tu en étais, sur n'importe quel ordinateur.</p>
+    </section>
+
+    <section class="card">
+      <div class="ladder-head">
+        <h2>🪜 L'échelle des niveaux</h2>
+        <span id="ladderProgress" class="ladder-progress"></span>
+      </div>
+      <div id="ladder" class="ladder"></div>
+    </section>
+
+    <section class="card">
+      <div class="ladder-head">
+        <h2>🥇 Meilleurs scores — cette édition</h2>
+        <span class="ladder-progress">record conservé, écrasé seulement si battu</span>
+      </div>
+      <div id="internalHall" class="hall"></div>
+    </section>
+
+    <section class="card">
+      <div class="ladder-head">
+        <h2>🏆 Hall of Fame — Chevaliers de Château Rance</h2>
+        <span class="ladder-progress">mémoire des champions · une saison par ligne</span>
+      </div>
+      <div id="chevaliersHall" class="hall"></div>
+    </section>
+
+    <footer class="credits">
+      <p class="credit-line">Réalisé par <strong>Aurélien Brulois</strong>, CPE au Collège Château Rance, avec l'assistance de son agent IA <strong>Aethonyx</strong> — année scolaire 2025-2026.</p>
+      <p class="credit-line">🏅 Trophée du concours <strong>« Chevalier du Château Rance »</strong> — parcours de lutte contre le harcèlement.</p>
+      <p class="legal"><strong>Mentions &amp; hommages.</strong> <em>Banana Balistique</em> est une création originale, non commerciale et à vocation pédagogique. Elle rend hommage à des œuvres existantes sans leur être affiliée ni par elles approuvée : « Gorillas » / <code>GORILLA.BAS</code> est une œuvre de Microsoft ; « Worms » est une marque de Team17 Digital Ltd. Aucun code source de ces jeux n'a été réutilisé — seules les mécaniques, héritées du genre « artillerie » qui leur est antérieur, ont inspiré ce projet. Les marques et noms cités appartiennent à leurs détenteurs respectifs.</p>
+      <p class="legal">Sauvegarde stockée localement dans ce navigateur, plus un export <code>.save</code> téléchargeable. Aucune donnée n'est transmise à l'extérieur.</p>
+    </footer>
+  </main>
+
+  <div id="toast" role="status"></div>
+
+  <script src="bb_save.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      var LEVELS = [
+        { id: 'N1', kind: 'game', icon: '🍌', title: 'Banana Balistique', tag: 'Jeu · Hommage à Gorillas',
+          file: 'niveau1_banana.html', ready: true, minTier: 1,
+          blurb: "Le duel d'artillerie original : angle, puissance, vent, et une ville bien destructible. Atteins le score cible pour vaincre l'adversaire." },
+        { id: 'N2', kind: 'pix', icon: '🍎', title: 'La découverte de la gravité', tag: 'PIX Sciences · Galilée & Newton',
+          file: 'niveau2_gravite.html', ready: true, minTier: 2,
+          blurb: "D'où vient la chute des corps ? De la tour de Pise à la pomme de Newton — le cours-jeu qui explique la physique derrière tes tirs." },
+        { id: 'N3', kind: 'game', icon: '🪱', title: 'Worms Balistique', tag: 'Jeu · Hommage à Worms',
+          file: 'niveau3_worms.html', ready: true, minTier: 2,
+          blurb: "Plusieurs soldats, des armes sélectionnables, un décor toujours destructible. La guerre d'artillerie passe à la vitesse supérieure." },
+        { id: 'N4', kind: 'pix', icon: '📐', title: 'Les lois balistiques', tag: 'PIX Sciences · Formules',
+          file: 'niveau4_formules.html', ready: false, minTier: 3,
+          blurb: "Portée, hauteur, temps de vol : les vraies formules de la balistique, expliquées pas à pas et mises en pratique." },
+        { id: 'N5', kind: 'game', icon: '🎯', title: 'Worms Formules', tag: 'Jeu · Tir calculé',
+          file: 'niveau5_worms_calc.html', ready: false, minTier: 3,
+          blurb: "Tu calcules ton tir, le jeu applique exactement ta formule. La physique devient ton arme." },
+        { id: 'N6', kind: 'game', icon: '🚁', title: 'Opération Sauvetage', tag: 'Jeu exclusif · Grand Gagnant · Hommage à Choplifter!',
+          file: 'niveau6_sauvetage.html', ready: false, minTier: 3,
+          blurb: "La récompense suprême, réservée au Grand Gagnant : un raid façon hélicoptère — éviter les obstacles, détruire les tours de défense, libérer les otages de la base ennemie et les ramener chez soi." }
+      ];
+
+      // ═══ Hall of Fame du concours « Chevaliers de Château Rance » ═══
+      // Données curatées par Aurélien. AJOUTE UNE LIGNE PAR SAISON (du plus récent
+      // au plus ancien) et mets "current" à la saison du champion à qui cette
+      // édition est remise. Aucun serveur : c'est de la mémoire écrite à la main.
+      var CHEVALIERS = {
+        current: '2025-2026',
+        champions: [
+          { saison: '2025-2026', pseudo: 'PELICAN-AMICAL-305', points: 693755 }
+        ]
+      };
+
+      var $ = function (id) { return document.getElementById(id); };
+      var toastTimer = null;
+      function toast(msg) {
+        var t = $('toast'); t.textContent = msg; t.classList.add('show');
+        clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2600);
+      }
+
+      function fmtPoints(n) { try { return Number(n).toLocaleString('fr-FR'); } catch (e) { return String(n); } }
+      function currentChampion() {
+        var list = CHEVALIERS.champions || [];
+        for (var i = 0; i < list.length; i++) if (list[i].saison === CHEVALIERS.current) return list[i];
+        return list[0] || null;
+      }
+      function renderChampionBadge() {
+        var el = $('championBadge'); if (!el) return;
+        var c = currentChampion();
+        el.innerHTML = c
+          ? '🏆 Cette édition récompense le champion <strong>' + c.saison + '</strong> du concours Chevaliers de Château Rance :<br><strong>' + c.pseudo + '</strong> · ' + fmtPoints(c.points) + ' pts'
+          : '';
+      }
+      function renderChevaliers() {
+        var host = $('chevaliersHall'); if (!host) return;
+        host.innerHTML = '';
+        var list = CHEVALIERS.champions || [];
+        if (!list.length) { host.innerHTML = '<div class="hall-empty">Aucun champion enregistré pour l\'instant.</div>'; return; }
+        list.forEach(function (c) {
+          var row = document.createElement('div');
+          row.className = 'hall-row' + (c.saison === CHEVALIERS.current ? ' current' : '');
+          row.innerHTML = '<span class="hall-saison">' + c.saison + '</span>'
+            + '<span class="hall-pseudo">' + c.pseudo + '</span>'
+            + '<span class="hall-points">' + fmtPoints(c.points) + ' pts</span>';
+          host.appendChild(row);
+        });
+      }
+
+      function renderInternalHall() {
+        var host = $('internalHall'); if (!host) return;
+        host.innerHTML = '';
+        var hof = (BB.getHof && BB.getHof()) || [];
+        if (!hof.length) {
+          host.innerHTML = '<div class="hall-empty">Personne n\'a encore marqué. Gagne un match au Niveau 1 pour entrer dans la légende !</div>';
+          return;
+        }
+        hof.forEach(function (entry, i) {
+          var medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : '#' + (i + 1)));
+          var row = document.createElement('div');
+          row.className = 'hall-row' + (i === 0 ? ' current' : '');
+          row.innerHTML = '<span class="hall-saison">' + medal + '</span>'
+            + '<span class="hall-pseudo">' + entry.name + '</span>'
+            + '<span class="hall-points">' + fmtPoints(entry.points) + ' pts</span>';
+          host.appendChild(row);
+        });
+      }
+
+      function renderLadder() {
+        var ladder = $('ladder');
+        ladder.innerHTML = '';
+        var doneN = BB.doneCount();
+        $('ladderProgress').textContent = doneN + ' / ' + LEVELS.length + ' niveaux réussis';
+
+        var tier = BB.getTier();
+        var admin = !!(BB.isAdmin && BB.isAdmin());
+        LEVELS.forEach(function (lv, i) {
+          var done = BB.isDone(lv.id);
+          var tierOk = admin || tier >= (lv.minTier || 1);
+          var unlocked = admin || (tierOk && BB.isUnlocked(lv.id));
+          var playable = unlocked && lv.ready;
+
+          var row = document.createElement('div');
+          row.className = 'level ' + (done ? 'is-done' : (unlocked ? 'is-open' : 'is-locked'));
+
+          var badge, badgeCls;
+          if (done) { badge = '✓ Réussi'; badgeCls = 'done'; }
+          else if (!tierOk) { badge = '🔒 Code requis'; badgeCls = 'locked'; }
+          else if (!unlocked) { badge = '🔒 Verrouillé'; badgeCls = 'locked'; }
+          else if (!lv.ready) { badge = '🚧 Bientôt'; badgeCls = 'soon'; }
+          else { badge = '▶ Jouable'; badgeCls = 'open'; }
+
+          var cta;
+          if (playable) {
+            cta = '<a class="play" href="' + lv.file + '">' + (done ? '↺ Rejouer' : '▶ Jouer') + '</a>';
+          } else if (!tierOk) {
+            cta = '<span class="play disabled">🔒 Code requis</span>';
+          } else if (unlocked && !lv.ready) {
+            cta = '<span class="play disabled">En préparation</span>';
+          } else {
+            cta = '<span class="play disabled">🔒 Verrouillé</span>';
+          }
+
+          row.innerHTML =
+            '<div class="icon">' + lv.icon + '</div>' +
+            '<div class="body">' +
+              '<div class="ttl"><span class="rung">NIVEAU ' + (i + 1) + '</span>' + lv.title + '</div>' +
+              '<div class="tag">' + lv.tag + '</div>' +
+              '<div class="blurb">' + lv.blurb + '</div>' +
+            '</div>' +
+            '<div class="cta">' +
+              '<span class="badge ' + badgeCls + '">' + badge + '</span>' +
+              cta +
+            '</div>';
+          ladder.appendChild(row);
+        });
+      }
+
+      function renderOwner() {
+        $('ownerName').textContent = BB.getOwner() || '—';
+      }
+
+      function tierName(t) { return t >= 3 ? '🥇 Accès Or' : (t === 2 ? '🥈 Accès Argent' : '🥉 Accès Bronze'); }
+      function renderTier() {
+        var el = $('tierChip'); if (!el) return;
+        el.textContent = (BB.isAdmin && BB.isAdmin()) ? '🛠️ Admin — tout ouvert' : tierName(BB.getTier());
+      }
+
+      function renderSessions() {
+        var sel = $('sessionSelect');
+        var owner = BB.getOwner();
+        var active = BB.getActiveSession();
+        sel.innerHTML = '';
+        BB.listSessions().forEach(function (name) {
+          var opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name + (name === owner ? ' (propriétaire)' : '');
+          if (name === active) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      }
+
+      function renderDedication() {
+        var owner = BB.getOwner();
+        var active = BB.getActiveSession();
+        var banner = $('dedicationBanner');
+        if (!owner) { banner.innerHTML = ''; return; }
+        if (active === owner) {
+          banner.innerHTML = '🏅 <strong>' + owner + '</strong>, voici ton édition — réalisée et gagnée au concours « Chevalier du Château Rance », rendant hommage à <em>Gorillas</em> &amp; <em>Worms</em>.';
+        } else {
+          banner.innerHTML = '🏅 Tu joues sur l\'édition de <strong>' + owner + '</strong> (gagnée au concours « Chevalier du Château Rance », hommage à <em>Gorillas</em> &amp; <em>Worms</em>). Ta session « <strong>' + active + '</strong> » est à toi ; la dédicace reste la sienne.';
+        }
+      }
+
+      function refresh() { renderOwner(); renderTier(); renderSessions(); renderDedication(); renderLadder(); renderInternalHall(); }
+
+      // — Engramme (première ouverture uniquement) —
+      function showAuth() {
+        $('authOverlay').classList.remove('hidden');
+        setTimeout(function () { var c = $('codeInput'); if (c) c.focus(); }, 60);
+      }
+      function welcomeBack() {
+        var owner = BB.getOwner(); if (!owner) return;
+        var last = BB.getLastScore();
+        toast('👋 Bienvenue ' + owner + (last > 0 ? ' — ton dernier score : ' + fmtPoints(last) + ' pts' : ' !'));
+      }
+      function enterCode() {
+        var code = $('codeInput').value.trim();
+        $('authError').textContent = '';
+        if (!code) { $('codeInput').focus(); return; }
+        try {
+          BB.applyCode(code);
+          $('authOverlay').classList.add('hidden');
+          refresh();
+          welcomeBack();
+        } catch (err) {
+          $('authError').textContent = '⚠️ ' + (err && err.message ? err.message : 'Code invalide.');
+        }
+      }
+      function engrave() {
+        var name = $('authInput').value.replace(/[<>]/g, '').trim();
+        if (name.length < 2) { $('authInput').focus(); toast('Entre au moins 2 lettres, Chevalier.'); return; }
+        BB.setOwner(name);
+        $('authOverlay').classList.add('hidden');
+        refresh();
+        toast('🎮 Bienvenue, ' + BB.getOwner() + ' — mode démo (Gorillas).');
+      }
+      $('codeConfirm').addEventListener('click', enterCode);
+      $('codeInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') enterCode(); });
+      $('authConfirm').addEventListener('click', engrave);
+      $('authInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') engrave(); });
+      $('authImport').addEventListener('click', function () { $('fileInput').click(); });
+
+      // — Sessions (prêt local : chacun la sienne, la dédicace reste au propriétaire) —
+      $('sessionSelect').addEventListener('change', function () { BB.switchSession(this.value); refresh(); });
+      $('btnNewSession').addEventListener('click', function () {
+        var name = prompt('Nom de la nouvelle session (le joueur qui emprunte le jeu) :', '');
+        if (name === null) return;
+        name = name.replace(/[<>]/g, '').trim();
+        if (name.length < 2) { toast('Il faut au moins 2 lettres.'); return; }
+        BB.createSession(name);
+        refresh();
+        toast('🎮 Session « ' + BB.getActiveSession() + ' » créée — à toi de jouer.');
+      });
+
+      // — Sauvegarde —
+      $('btnDownload').addEventListener('click', function () {
+        var name = BB.download();
+        toast('💾 Sauvegarde téléchargée : ' + name);
+      });
+      $('btnImport').addEventListener('click', function () { $('fileInput').click(); });
+      $('fileInput').addEventListener('change', function (ev) {
+        var file = ev.target.files && ev.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          try {
+            BB.importText(String(reader.result));
+            if (BB.hasOwner()) $('authOverlay').classList.add('hidden');
+            refresh();
+            var who = BB.getOwner();
+            toast('📂 Édition' + (who ? ' de ' + who : '') + ' importée — bienvenue à la maison.');
+          } catch (err) {
+            toast('⚠️ ' + (err && err.message ? err.message : 'Import impossible.'));
+          }
+        };
+        reader.readAsText(file);
+        ev.target.value = '';
+      });
+      $('btnReset').addEventListener('click', function () {
+        if (!confirm('Réinitialiser ta progression de jeu ? Ta dédicace, elle, reste gravée à vie. (Pense à télécharger ta sauvegarde d\'abord.)')) return;
+        BB.resetProgress();
+        refresh();
+        toast('↺ Progression réinitialisée — dédicace conservée.');
+      });
+
+      // Re-rendu quand on revient sur l'onglet (après un niveau gagné).
+      window.addEventListener('focus', refresh);
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
+
+      renderChampionBadge();
+      renderChevaliers();
+      refresh();
+      if (!BB.hasOwner()) showAuth();
+      else welcomeBack();
+    })();
+  </script>
+</body>
+</html>
