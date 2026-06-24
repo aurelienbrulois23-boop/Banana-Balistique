@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#10142b" />
+  <title>Niveau 6 — Opération Sauvetage</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f7f3df; --muted: #b9bfd5; --panel: rgba(13,17,39,.92); --line: rgba(255,255,255,.13);
+      --gold: #ffd84a; --green: #57e08a; --red: #ff6f8f; --sky: #5ec1ff;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%;
+      background: radial-gradient(circle at 50% -20%, #2c3a5e 0, #16203a 38%, #080c1c 100%);
+      color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+    body { display: grid; place-items: center; min-height: 100dvh; padding: 14px; overflow-x: hidden; }
+    button { border: 0; cursor: pointer; color: #111525; font-weight: 850; font: inherit; }
+    .game-shell { width: min(1280px, 100%); display: grid; gap: 10px; }
+    .stage { position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,.18); border-radius: 22px;
+      background: #081225; box-shadow: 0 24px 80px rgba(0,0,0,.45); aspect-ratio: 16/9; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .modal { position: absolute; inset: 0; display: grid; place-items: center; padding: clamp(14px,3vw,30px);
+      background: linear-gradient(rgba(4,7,19,.6), rgba(4,7,19,.86)); backdrop-filter: blur(8px); z-index: 5; overflow-y: auto; }
+    .modal.hidden { display: none; }
+    .card { width: min(620px, 100%); padding: clamp(20px,4vw,32px); border: 1px solid rgba(255,255,255,.16);
+      border-radius: 22px; background: linear-gradient(145deg, rgba(28,38,68,.96), rgba(11,16,33,.96)); box-shadow: 0 26px 70px rgba(0,0,0,.45); }
+    .eyebrow { margin: 0 0 5px; color: var(--gold); font-size: .76rem; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(1.7rem,6vw,3rem); line-height: .95; text-transform: uppercase; letter-spacing: -.03em; }
+    .tagline { color: var(--muted); margin: 12px 0 16px; line-height: 1.55; font-size: .98rem; }
+    .tagline strong { color: var(--ink); }
+    .keys { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+    .keys div { background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: .88rem; color: var(--muted); }
+    .keys b { color: var(--gold); }
+    .primary, .secondary { border-radius: 14px; min-height: 48px; width: 100%; transition: transform .12s, filter .12s; }
+    .primary { margin-top: 8px; background: linear-gradient(180deg, #ffe46d, #ffc82f); box-shadow: 0 7px 0 #9c6610; }
+    .secondary { background: #dbe0f4; box-shadow: 0 5px 0 #7f88aa; }
+    .primary:active, .secondary:active { transform: translateY(2px); }
+    .end-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+    .winner { margin: 8px 0 0; color: var(--gold); font-size: clamp(1.4rem,5vw,2.2rem); font-weight: 950; }
+    .homage { border-left: 3px solid var(--gold); padding: 8px 0 8px 14px; margin: 14px 0 0; color: var(--muted); font-size: .88rem; line-height: 1.55; }
+    .homage strong { color: var(--ink); }
+    .touch { position: absolute; bottom: 12px; z-index: 4; display: flex; gap: 10px; }
+    .touch.hidden { display: none; }
+    .tbtn { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.12); color: var(--ink); border: 1px solid rgba(255,255,255,.2); font-size: 1.3rem; }
+    .hint { margin: 0; text-align: center; color: #8e96b5; font-size: .76rem; }
+  </style>
+</head>
+<body>
+  <main class="game-shell" aria-label="Opération Sauvetage">
+    <section class="stage">
+      <canvas id="game" width="1280" height="720"></canvas>
+
+      <div id="introModal" class="modal">
+        <div class="card">
+          <p class="eyebrow">Niveau 6 · Jeu exclusif · Grand Gagnant · Hommage à Choplifter!</p>
+          <h1>Opération<br>Sauvetage</h1>
+          <p class="tagline">Aux commandes de l'hélico, traverse <strong>5 km</strong> de ligne ennemie. Le <strong>vent</strong> pousse ton appareil et courbe tes roquettes. Atteins la <strong>base ennemie</strong>, pose-toi près des <strong>otages</strong> pour les embarquer, et <strong>ramène-les vivants</strong> à ta base. Les tourelles tirent tendu, les obusiers en cloche — esquive, riposte, sauve.</p>
+          <div class="keys">
+            <div><b>← ↑ ↓ →</b> piloter</div>
+            <div><b>Espace</b> (maintenu) mitraillette</div>
+            <div><b>R</b> roquette (×10)</div>
+            <div><b>otages</b> : pose-toi à basse altitude</div>
+          </div>
+          <button id="startButton" class="primary">Décollage</button>
+          <p class="homage"><strong>Hommage.</strong> <em>Choplifter!</em> (1982) de <strong>Dan Gorlin</strong>, édité par <strong>Brøderbund</strong> sur Apple II : aux commandes d'un hélicoptère, on franchissait les lignes ennemies pour ramener 64 otages, en esquivant chars et chasseurs. Un pilier du jeu de sauvetage.</p>
+        </div>
+      </div>
+
+      <div id="endModal" class="modal hidden">
+        <div class="card">
+          <p class="eyebrow" id="endEyebrow">Mission terminée</p>
+          <div id="winnerText" class="winner">Tous sauvés !</div>
+          <p id="finalScore" class="tagline"></p>
+          <a id="nextLevelButton" class="primary" href="index.html" style="display:none;padding:13px;text-align:center;text-decoration:none;color:#111525;font-weight:850;">🎓 Retour au QG →</a>
+          <div class="end-actions">
+            <button id="replayButton" class="primary" style="margin-top:0">Rejouer</button>
+            <button id="menuButton" class="secondary">Menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="touch" class="touch hidden" style="left:12px;">
+        <button class="tbtn" data-k="up">▲</button>
+        <button class="tbtn" data-k="down">▼</button>
+        <button class="tbtn" data-k="left">◀</button>
+        <button class="tbtn" data-k="right">▶</button>
+      </div>
+      <div id="touchR" class="touch hidden" style="right:12px;">
+        <button class="tbtn" data-k="mg">⚡</button>
+        <button class="tbtn" data-k="rocket">🚀</button>
+      </div>
+    </section>
+    <p class="hint">Pilote au clavier · maintiens Espace pour la mitraillette · R pour une roquette · ramène les otages à ta base (à gauche).</p>
+  </main>
+
+  <script src="bb_save.js"></script>
+  <script>
+    (() => {
+      'use strict';
+      const W = 1280, H = 720, TWO_PI = Math.PI * 2;
+      const SCALE = 2.4;                  // pixels par mètre
+      const GROUND_Y = 660;              // px : altitude 0
+      const CEIL = 268;                  // m : plafond
+      const WORLD = 5000;                // m : longueur du couloir (niveau 1)
+      const HOME_X = 70, ENEMY_BASE_X = 4600;
+      const HOSTAGES_TOTAL = 6, CAPACITY = 3;
+      const WIND_PROJ = 9;               // accel horizontale du vent sur les projectiles (m/s²/unité)
+      const HELI_WIND = 1.6;             // dérive du vent sur l'hélico
+      const owner = (window.BB && BB.getOwner && BB.getOwner()) || 'Chevalier';
+
+      const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+      const introModal = document.getElementById('introModal'), endModal = document.getElementById('endModal');
+      const startButton = document.getElementById('startButton'), replayButton = document.getElementById('replayButton');
+      const menuButton = document.getElementById('menuButton'), nextLevelButton = document.getElementById('nextLevelButton');
+      const winnerText = document.getElementById('winnerText'), finalScore = document.getElementById('finalScore'), endEyebrow = document.getElementById('endEyebrow');
+
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      const random = (a, b) => a + Math.random() * (b - a);
+      const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
+
+      // Terrain : collines douces + quelques tours/obstacles
+      const TOWERS = [{ x: 900, h: 130 }, { x: 1800, h: 160 }, { x: 2600, h: 120 }, { x: 3500, h: 175 }];
+      function groundAt(x) {
+        let h = 26 + Math.sin(x * 0.0017) * 16 + Math.sin(x * 0.006 + 1) * 9;
+        for (const t of TOWERS) { const d = Math.abs(x - t.x); if (d < 26) h = Math.max(h, t.h * (1 - d / 26)); }
+        return Math.max(6, h);
+      }
+
+      const state = {
+        phase: 'intro',
+        heli: { x: HOME_X, y: 120, vx: 0, vy: 0, dir: 1, hp: 100, carried: 0 },
+        cam: 0, wind: 0, windT: 0,
+        keys: { left: false, right: false, up: false, down: false, mg: false },
+        bullets: [], rockets: [], eshots: [], enemies: [], hostages: [],
+        explosions: [], particles: [],
+        rocketAmmo: 10, mgCool: 0, rescued: 0, score: 0,
+        message: 'Décolle et file vers la base ennemie (à droite).', msgT: 3,
+        last: performance.now()
+      };
+
+      function setupLevel() {
+        state.heli = { x: HOME_X, y: 120, vx: 0, vy: 0, dir: 1, hp: 100, carried: 0 };
+        state.cam = 0; state.wind = random(-7, 7); state.windT = random(3, 6);
+        state.bullets = []; state.rockets = []; state.eshots = []; state.explosions = []; state.particles = [];
+        state.rocketAmmo = 10; state.mgCool = 0; state.rescued = 0; state.score = 0;
+        // ennemis répartis le long du couloir
+        state.enemies = [];
+        const spots = [600, 1100, 1500, 2100, 2500, 3000, 3400, 3900, 4300, 4550, 4650];
+        spots.forEach((x, i) => {
+          const type = (i % 3 === 2) ? 'howitzer' : 'turret';
+          state.enemies.push({ x, y: groundAt(x), type, hp: type === 'howitzer' ? 40 : 26, cool: random(1, 3), alive: true });
+        });
+        // otages à la base ennemie
+        state.hostages = [];
+        for (let i = 0; i < HOSTAGES_TOTAL; i++) state.hostages.push({ x: ENEMY_BASE_X + (i - HOSTAGES_TOTAL / 2) * 18, state: 'waiting' });
+      }
+
+      function startGame() {
+        setupLevel(); state.phase = 'play';
+        introModal.classList.add('hidden'); endModal.classList.add('hidden');
+        document.getElementById('touch').classList.remove('hidden'); document.getElementById('touchR').classList.remove('hidden');
+        state.message = 'Cap à l\'est : la base ennemie est à 4,6 km.'; state.msgT = 3;
+      }
+      function showMenu() { state.phase = 'intro'; introModal.classList.remove('hidden'); endModal.classList.add('hidden'); document.getElementById('touch').classList.add('hidden'); document.getElementById('touchR').classList.add('hidden'); }
+
+      function fireRocket() {
+        if (state.phase !== 'play' || state.rocketAmmo <= 0) return;
+        const h = state.heli;
+        state.rockets.push({ x: h.x + h.dir * 6, y: h.y, vx: h.dir * 95 + h.vx, vy: 14, t: 0 });
+        state.rocketAmmo--;
+      }
+      function fireMG() {
+        const h = state.heli;
+        state.bullets.push({ x: h.x + h.dir * 7, y: h.y - 1, vx: h.dir * 360 + h.vx * .3, vy: 0, t: 0 });
+      }
+
+      function enemyFire(e) {
+        const h = state.heli;
+        if (e.type === 'turret') {
+          // tir tendu vers l'hélico
+          const ang = Math.atan2((h.y) - e.y, h.x - e.x);
+          const sp = 230;
+          state.eshots.push({ x: e.x, y: e.y + 6, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, g: 12, dmg: 7, t: 0, kind: 'mg' });
+        } else {
+          // obusier : tir en cloche (lead simple)
+          const dx = (h.x + h.vx * 1.5) - e.x;
+          const g = 90, v = 150;
+          // angle ~ 60° vers la cible
+          const sgn = dx >= 0 ? 1 : -1;
+          state.eshots.push({ x: e.x, y: e.y + 8, vx: sgn * v * 0.55 + state.wind * .4, vy: v * 0.84, g, dmg: 16, t: 0, kind: 'shell' });
+        }
+      }
+
+      function explode(x, y, big) {
+        state.explosions.push({ x, y, age: 0, life: big ? .55 : .4, maxR: big ? 46 : 26 });
+        const n = big ? 30 : 16, cols = ['#fff3a6', '#ffd34e', '#ff9f38', '#ff5f45'];
+        for (let i = 0; i < n; i++) { const a = random(0, TWO_PI), s = random(40, big ? 240 : 150); state.particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 30, life: random(.3, .9), size: random(2, 6), color: cols[i % 4], g: random(120, 260) }); }
+      }
+      function hurtHeli(d) { state.heli.hp -= d; if (state.heli.hp <= 0) { state.heli.hp = 0; lose(); } }
+
+      function step(dt) {
+        if (state.phase !== 'play') return;
+        if (state.msgT > 0) state.msgT -= dt;
+        // vent qui tourne lentement
+        state.windT -= dt; if (state.windT <= 0) { state.wind = random(-10, 10); state.windT = random(3, 6); }
+        const h = state.heli, k = state.keys, TH = 95;
+        // contrôle + inertie + vent
+        if (k.left) { h.vx -= TH * dt; h.dir = -1; }
+        if (k.right) { h.vx += TH * dt; h.dir = 1; }
+        if (k.up) h.vy += TH * dt;
+        if (k.down) h.vy -= TH * dt;
+        h.vx += state.wind * HELI_WIND * dt;
+        h.vx *= (1 - 1.25 * dt); h.vy *= (1 - 1.7 * dt);
+        h.vx = clamp(h.vx, -95, 95); h.vy = clamp(h.vy, -85, 85);
+        h.x = clamp(h.x + h.vx * dt, 20, WORLD - 20);
+        h.y = clamp(h.y + h.vy * dt, 0, CEIL);
+        // collision terrain
+        const gh = groundAt(h.x);
+        if (h.y < gh + 6) {
+          // posé doucement ? sinon dégâts si vitesse verticale forte
+          if (h.y <= gh + 6 && Math.abs(h.vy) > 55) { hurtHeli(40); explode(h.x, gh, true); }
+          h.y = gh + 6; if (h.vy < 0) h.vy = 0;
+        }
+        // mitraillette
+        state.mgCool -= dt;
+        if (k.mg && state.mgCool <= 0) { fireMG(); state.mgCool = .07; }
+
+        // otages : embarquement à la base ennemie, dépose à la maison
+        const landed = h.y <= groundAt(h.x) + 9 && Math.abs(h.vy) < 30;
+        if (landed) {
+          if (h.x > ENEMY_BASE_X - 140 && h.x < ENEMY_BASE_X + 140 && h.carried < CAPACITY) {
+            for (const o of state.hostages) { if (o.state === 'waiting' && Math.abs(o.x - h.x) < 80 && h.carried < CAPACITY) { o.state = 'aboard'; h.carried++; state.message = `Otage à bord (${h.carried}/${CAPACITY}). Ramène-les !`; state.msgT = 2.5; } }
+          }
+          if (h.x < HOME_X + 160 && h.carried > 0) {
+            state.rescued += h.carried; state.score += h.carried * 5000;
+            for (const o of state.hostages) if (o.state === 'aboard') o.state = 'safe';
+            state.message = `${h.carried} otage(s) sauvé(s) ! (${state.rescued}/${HOSTAGES_TOTAL})`; state.msgT = 2.8; h.carried = 0;
+            if (state.rescued >= HOSTAGES_TOTAL) { win(); return; }
+          }
+        }
+
+        // projectiles hélico
+        for (const b of state.bullets) { b.t += dt; b.vy += 8 * dt; b.x += b.vx * dt; b.y -= b.vy * dt; }
+        state.bullets = state.bullets.filter(b => b.t < 1.4 && b.y > 0 && b.x > state.cam - 50 && b.x < state.cam + 650);
+        for (const r of state.rockets) { r.t += dt; r.vx += state.wind * WIND_PROJ * dt * .3; r.vy -= 60 * dt; r.x += r.vx * dt; r.y += r.vy * dt; }
+        state.rockets = state.rockets.filter(r => r.t < 5 && r.x > 0 && r.x < WORLD && r.y > -20);
+        // tirs ennemis
+        for (const s of state.eshots) { s.t += dt; s.vy -= s.g * dt; s.x += s.vx * dt; s.y += s.vy * dt; }
+        state.eshots = state.eshots.filter(s => s.t < 6 && s.y > -10 && s.x > 0 && s.x < WORLD);
+
+        // collisions : projectiles hélico vs ennemis
+        for (const e of state.enemies) {
+          if (!e.alive) continue;
+          for (const b of state.bullets) { if (dist(b.x, b.y, e.x, e.y) < 12) { e.hp -= 8; b.t = 99; } }
+          for (const r of state.rockets) { if (dist(r.x, r.y, e.x, e.y) < 22) { e.hp -= 60; r.t = 99; explode(e.x, e.y, true); } }
+          if (e.hp <= 0) { e.alive = false; state.score += 1500; explode(e.x, e.y, true); }
+        }
+        state.bullets = state.bullets.filter(b => b.t < 90);
+        state.rockets = state.rockets.filter(r => r.t < 90);
+        // roquettes vs terrain
+        for (const r of state.rockets) { if (r.y <= groundAt(r.x)) { explode(r.x, groundAt(r.x), true); r.t = 99; } }
+        state.rockets = state.rockets.filter(r => r.t < 90);
+
+        // tirs ennemis vs hélico
+        for (const s of state.eshots) { if (dist(s.x, s.y, h.x, h.y) < 11) { hurtHeli(s.dmg); s.t = 99; explode(h.x, h.y, false); } }
+        state.eshots = state.eshots.filter(s => s.t < 90);
+
+        // IA tir des ennemis à portée
+        for (const e of state.enemies) {
+          if (!e.alive) continue;
+          e.cool -= dt;
+          const dx = Math.abs(e.x - h.x);
+          if (dx < 540 && e.cool <= 0) { enemyFire(e); e.cool = e.type === 'howitzer' ? random(2.4, 3.6) : random(1.1, 2); }
+        }
+
+        // FX
+        for (const e of state.explosions) e.age += dt; state.explosions = state.explosions.filter(e => e.age < e.life);
+        for (const p of state.particles) { p.life -= dt; p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; }
+        state.particles = state.particles.filter(p => p.life > 0);
+
+        // caméra suit l'hélico
+        const visM = W / SCALE;
+        state.cam = clamp(h.x - visM * 0.32, 0, WORLD - visM);
+      }
+
+      function win() {
+        state.phase = 'won'; finishMission(true);
+      }
+      function lose() {
+        state.phase = 'lost'; finishMission(false);
+      }
+      function finishMission(victory) {
+        document.getElementById('touch').classList.add('hidden'); document.getElementById('touchR').classList.add('hidden');
+        if (victory) { state.score += 12000; }
+        const score = Math.max(0, Math.round(state.score));
+        endEyebrow.textContent = victory ? 'Mission accomplie' : 'Hélico abattu';
+        winnerText.textContent = victory ? 'Tous les otages sauvés !' : 'Appareil perdu…';
+        finalScore.textContent = victory
+          ? `Tu as ramené les ${HOSTAGES_TOTAL} otages · ${score.toLocaleString('fr-FR')} pts. Le Château Rance te salue, ${owner}.`
+          : `Otages sauvés : ${state.rescued}/${HOSTAGES_TOTAL}. Reprends les commandes !`;
+        nextLevelButton.style.display = 'none';
+        if (victory && window.BB) {
+          const who = (BB.getOwner && BB.getOwner()) || 'Chevalier';
+          if (typeof BB.submitScore === 'function') BB.submitScore(who, score);
+          if (typeof BB.setLastScore === 'function') BB.setLastScore(score);
+          if (typeof BB.markDone === 'function') BB.markDone('N6', { points: score });
+          nextLevelButton.style.display = 'block';
+          finalScore.textContent += ' 🏆 Niveau exclusif accompli !';
+        }
+        endModal.classList.remove('hidden');
+      }
+
+      // ─── Rendu ───
+      const wx = (mx) => (mx - state.cam) * SCALE;
+      const wy = (my) => GROUND_Y - my * SCALE;
+      function draw() {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#0b1233'); g.addColorStop(.55, '#3b4a78'); g.addColorStop(1, '#9ab6d6');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+        if (state.phase === 'intro') return;
+        // terrain
+        ctx.fillStyle = '#2c3a24'; ctx.beginPath(); ctx.moveTo(0, H);
+        for (let px = 0; px <= W; px += 6) { const mx = state.cam + px / SCALE; ctx.lineTo(px, wy(groundAt(mx))); }
+        ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#5b7a3a'; ctx.lineWidth = 2; ctx.beginPath();
+        for (let px = 0; px <= W; px += 6) { const mx = state.cam + px / SCALE; const X = px, Y = wy(groundAt(mx)); if (px === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); }
+        ctx.stroke();
+        // bases
+        drawBase(HOME_X, '#57e08a', '🏠');
+        drawBase(ENEMY_BASE_X, '#ff6f8f', '⚑');
+        // otages
+        for (const o of state.hostages) { if (o.state !== 'waiting') continue; const X = wx(o.x), Y = wy(groundAt(o.x)); if (X < -20 || X > W + 20) continue; ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.arc(X, Y - 14, 4, 0, TWO_PI); ctx.fill(); ctx.fillRect(X - 3, Y - 11, 6, 10); }
+        // ennemis
+        for (const e of state.enemies) { if (!e.alive) continue; const X = wx(e.x), Y = wy(e.y); if (X < -30 || X > W + 30) continue; drawEnemy(X, Y, e.type); }
+        // tirs ennemis
+        for (const s of state.eshots) { const X = wx(s.x), Y = wy(s.y); ctx.fillStyle = s.kind === 'shell' ? '#ffb24a' : '#ff7a7a'; ctx.beginPath(); ctx.arc(X, Y, s.kind === 'shell' ? 4 : 2.5, 0, TWO_PI); ctx.fill(); }
+        // balles + roquettes hélico
+        for (const b of state.bullets) { const X = wx(b.x), Y = wy(b.y); ctx.fillStyle = '#fff3a6'; ctx.fillRect(X - 4, Y - 1, 8, 2); }
+        for (const r of state.rockets) { const X = wx(r.x), Y = wy(r.y); ctx.save(); ctx.translate(X, Y); ctx.rotate(Math.atan2(-r.vy, r.vx)); ctx.fillStyle = '#e8e8ee'; ctx.fillRect(-6, -2, 12, 4); ctx.fillStyle = '#ff5f45'; ctx.fillRect(-9, -2, 3, 4); ctx.restore(); }
+        // hélico
+        drawHeli();
+        // FX
+        for (const e of state.explosions) { const t = e.age / e.life, r = e.maxR * Math.sin(Math.min(1, t) * Math.PI * .7); const rg = ctx.createRadialGradient(e.x ? wx(e.x) : 0, 0, 0, wx(e.x), wy(e.y), Math.max(1, r)); rg.addColorStop(0, `rgba(255,255,215,${1 - t})`); rg.addColorStop(.6, `rgba(255,140,60,${.7 - t * .6})`); rg.addColorStop(1, 'rgba(255,80,60,0)'); ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(wx(e.x), wy(e.y), r, 0, TWO_PI); ctx.fill(); }
+        for (const p of state.particles) { ctx.globalAlpha = clamp(p.life, 0, 1); ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(wx(p.x), wy(p.y), p.size, 0, TWO_PI); ctx.fill(); }
+        ctx.globalAlpha = 1;
+        drawHud();
+      }
+      function drawBase(mx, col, glyph) {
+        const X = wx(mx), Y = wy(groundAt(mx)); if (X < -60 || X > W + 60) return;
+        ctx.fillStyle = col; ctx.globalAlpha = .25; ctx.fillRect(X - 50, Y - 4, 100, 4); ctx.globalAlpha = 1;
+        ctx.fillStyle = col; ctx.fillRect(X - 50, Y - 4, 100, 3);
+        ctx.font = '22px system-ui'; ctx.textAlign = 'center'; ctx.fillText(glyph, X, Y - 12);
+      }
+      function drawEnemy(X, Y, type) {
+        if (type === 'turret') { ctx.fillStyle = '#7a3a3a'; ctx.fillRect(X - 12, Y - 12, 24, 12); ctx.fillStyle = '#b85a5a'; ctx.fillRect(X - 4, Y - 20, 18, 5); }
+        else { ctx.fillStyle = '#5a4a2a'; ctx.fillRect(X - 14, Y - 14, 28, 14); ctx.strokeStyle = '#caa45a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(X, Y - 10); ctx.lineTo(X - 14, Y - 26); ctx.stroke(); }
+      }
+      function drawHeli() {
+        const h = state.heli, X = wx(h.x), Y = wy(h.y), d = h.dir;
+        ctx.save(); ctx.translate(X, Y); ctx.scale(d, 1);
+        // ombre rotor
+        const rot = (performance.now() * .06) % 1 < .5 ? 26 : 10;
+        ctx.strokeStyle = 'rgba(220,230,255,.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-rot, -13); ctx.lineTo(rot, -13); ctx.stroke();
+        ctx.fillStyle = '#dfe6ff'; ctx.fillRect(-2, -13, 4, 5);
+        // corps
+        ctx.fillStyle = '#3a6b46'; ctx.beginPath(); ctx.ellipse(0, -4, 15, 8, 0, 0, TWO_PI); ctx.fill();
+        ctx.fillStyle = '#2a4f34'; ctx.fillRect(10, -7, 18, 4);             // queue
+        ctx.fillStyle = '#bfe0ff'; ctx.beginPath(); ctx.arc(-6, -5, 5, 0, TWO_PI); ctx.fill();  // cockpit
+        // patins + otages
+        ctx.strokeStyle = '#1c2a20'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-12, 5); ctx.lineTo(12, 5); ctx.stroke();
+        ctx.restore();
+        if (h.carried > 0) { ctx.fillStyle = '#ffd84a'; ctx.font = '11px system-ui'; ctx.textAlign = 'center'; ctx.fillText('👤×' + h.carried, X, Y + 22); }
+      }
+      function roundedRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+      function drawHud() {
+        const h = state.heli;
+        // barre de vie
+        ctx.save();
+        roundedRect(18, 16, 200, 52, 12); ctx.fillStyle = 'rgba(8,11,29,.8)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = '#8e96b5'; ctx.font = '700 10px system-ui'; ctx.textAlign = 'left'; ctx.fillText('BLINDAGE', 32, 32);
+        ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fillRect(32, 38, 120, 8);
+        ctx.fillStyle = h.hp > 50 ? '#6ee07a' : h.hp > 25 ? '#ffd34e' : '#ff5f45'; ctx.fillRect(32, 38, 120 * clamp(h.hp / 100, 0, 1), 8);
+        ctx.fillStyle = '#ffd84a'; ctx.font = '900 13px system-ui'; ctx.fillText('🚀 ' + state.rocketAmmo, 162, 46);
+        ctx.restore();
+        // otages
+        ctx.save(); roundedRect(W / 2 - 110, 16, 220, 36, 12); ctx.fillStyle = 'rgba(8,11,29,.8)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.stroke();
+        ctx.textAlign = 'center'; ctx.fillStyle = '#ffd84a'; ctx.font = '900 14px system-ui';
+        ctx.fillText(`OTAGES ${state.rescued}/${HOSTAGES_TOTAL}  ·  À BORD ${h.carried}/${CAPACITY}`, W / 2, 39); ctx.restore();
+        // vent + distance
+        ctx.save(); roundedRect(W - 218, 16, 200, 52, 12); ctx.fillStyle = 'rgba(8,11,29,.8)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.stroke();
+        ctx.textAlign = 'right'; const s = Math.abs(state.wind).toFixed(0);
+        ctx.fillStyle = '#cdd3ea'; ctx.font = '800 13px system-ui'; ctx.fillText('VENT ' + (state.wind < 0 ? '◀' : '▶') + ' ' + s + ' m/s', W - 32, 34);
+        ctx.fillStyle = '#8e96b5'; ctx.font = '700 12px system-ui'; ctx.fillText('DIST ' + (h.x / 1000).toFixed(2) + ' / 5 km', W - 32, 54); ctx.restore();
+        // message
+        if (state.msgT > 0) { ctx.textAlign = 'center'; ctx.fillStyle = '#f7f3df'; ctx.font = '800 15px system-ui'; ctx.fillText(state.message, W / 2, H - 24); }
+      }
+
+      // ─── Entrées ───
+      const KMAP = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', a: 'left', d: 'right', w: 'up', s: 'down', ' ': 'mg' };
+      window.addEventListener('keydown', e => {
+        if (state.phase !== 'play') return;
+        const k = KMAP[e.key]; if (k) { state.keys[k] = true; e.preventDefault(); }
+        if (e.key === 'r' || e.key === 'R') { fireRocket(); e.preventDefault(); }
+      }, { passive: false });
+      window.addEventListener('keyup', e => { const k = KMAP[e.key]; if (k) { state.keys[k] = false; e.preventDefault(); } }, { passive: false });
+      document.querySelectorAll('.tbtn').forEach(btn => {
+        const k = btn.dataset.k;
+        const on = (ev) => { ev.preventDefault(); if (k === 'rocket') fireRocket(); else state.keys[k] = true; };
+        const off = (ev) => { ev.preventDefault(); if (k !== 'rocket') state.keys[k] = false; };
+        btn.addEventListener('pointerdown', on); btn.addEventListener('pointerup', off); btn.addEventListener('pointerleave', off);
+      });
+      startButton.addEventListener('click', startGame);
+      replayButton.addEventListener('click', startGame);
+      menuButton.addEventListener('click', showMenu);
+
+      function frame(now) { const dt = Math.min(.04, (now - state.last) / 1000); state.last = now; step(dt); draw(); requestAnimationFrame(frame); }
+      draw(); requestAnimationFrame(frame);
+
+      // crochet de test (inoffensif) : permet de piloter la simulation sans rAF
+      window.__n6 = { state, step, fireRocket, fireMG, startGame, setupLevel, groundAt, ENEMY_BASE_X, HOME_X };
+    })();
+  </script>
+</body>
+</html>

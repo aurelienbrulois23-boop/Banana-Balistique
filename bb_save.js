@@ -17,7 +17,7 @@
   'use strict';
 
   var KEY = 'BB_SAVE';
-  var LEVEL_ORDER = ['N1', 'N2', 'N3', 'N4', 'N5'];
+  var LEVEL_ORDER = ['N1', 'N2', 'N3', 'N4', 'N5', 'N6'];
   // Passe-partout administrateur (déverrouille TOUT, ignore aussi la progression).
   // Non-secret cryptographiquement (lisible dans ce fichier) — change-le si besoin.
   var ADMIN_CODE = 'AETHONYX-MAITRE-DES-CLES';
