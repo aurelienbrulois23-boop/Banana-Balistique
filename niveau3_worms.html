@@ -164,7 +164,7 @@
         </div>
       </div>
     </section>
-    <p class="hint">Clavier : ↑/↓ angle · ←/→ puissance · 1-8 arme · espace pour tirer · (tête-chercheuse : clique une cible)</p>
+    <p class="hint">Tour : 5 s de déplacement puis tir · clavier : ←/→ marcher, ↑/↓ angle, espace action · blindage : glisse sur la carte</p>
   </main>
 
   <script src="bb_save.js"></script>
@@ -174,6 +174,7 @@
       const W = 1280, H = 720, TWO_PI = Math.PI * 2;
       const WIND_ACCEL = 16, MAX_WIND = 18;
       const ARMOR_PER_TEAM = 3, ARMOR_LENGTH = 92, ARMOR_THICKNESS = 14;
+      const MOVE_DURATION = 5, MOVE_SPEED = 96, MOVE_STEP = 36;
       const FALL_GRAVITY = 920, MAX_FALL_DAMAGE = 30;
 
       const canvas = document.getElementById('game');
@@ -213,9 +214,10 @@
         boomerang:   { name: 'Boomerang', icon: '🍌', ammo: 2, speed: 6.6, wind: .8, gravity: 300, blastR: 44, dmg: 52, kind: 'boomerang' },
         grenade:     { name: 'Grenade', icon: '🧨', ammo: 6, speed: 6.4, wind: .85, gravity: 430, blastR: 46, dmg: 58, kind: 'single' },
         shrapnel:    { name: 'Gren. shrapnel', icon: '💥', ammo: 4, speed: 6.2, wind: .85, gravity: 430, blastR: 38, dmg: 38, kind: 'shrapnel' },
+        blindage:    { name: 'Blindage', icon: '▬', ammo: ARMOR_PER_TEAM, speed: 0, wind: 0, gravity: 0, blastR: 0, dmg: 0, kind: 'armor' },
         _shrapbit:   { name: 'Éclat', icon: '•', ammo: 0, speed: 1, wind: .8, gravity: 430, blastR: 22, dmg: 28, kind: 'single' }
       };
-      const WEAPON_ORDER = ['pistolet', 'mitraillette', 'mortier', 'bazooka', 'chercheuse', 'boomerang', 'grenade', 'shrapnel'];
+      const WEAPON_ORDER = ['pistolet', 'mitraillette', 'mortier', 'bazooka', 'chercheuse', 'boomerang', 'grenade', 'shrapnel', 'blindage'];
       const TEAM_COLORS = ['#57e08a', '#ff6f8f'];
       function ammoSet() { const o = {}; WEAPON_ORDER.forEach(k => o[k] = WEAPONS[k].ammo); return o; }
 
@@ -231,6 +233,7 @@
         wind: 0, windPulse: 0,
         matchScore: 30000, shotsByTeam: [0, 0], fireEnemyKills: 0, fireKills: 0,
         phaseTimer: 0, nextAction: null, aiDelay: 0, flightAccumulator: 0,
+        movement: { left: false, right: false, aiDir: 0, aiSwitch: 0 },
         shake: 0, message: '', messageTimer: 0,
         stars: [], clouds: [], sound: true, audioContext: null, lastTime: performance.now()
       };
@@ -462,7 +465,7 @@
         if (state.placement.index >= state.perTeam) {
           if (state.mode === 'ai' || team === 1) {
             if (state.mode === 'ai') autoPlaceTeam(1);
-            beginArmorPlacement(0);
+            finishPlacement();
           } else {
             state.placement = { team: 1, index: 0 };
             state.activeTeam = 1;
@@ -496,7 +499,7 @@
       function armorStatus() {
         if (!state.armorPlacement) return '';
         const t = state.armorPlacement.team;
-        return `${state.teamNames[t]} : blindage ${state.armorPlacement.index + 1}/${ARMOR_PER_TEAM} - glisse pour orienter.`;
+        return `${state.teamNames[t]} : pose un blindage - glisse pour orienter.`;
       }
       function syncArmorMessage() {
         state.message = armorStatus();
@@ -542,13 +545,10 @@
         return true;
       }
       function beginArmorPlacement(team) {
-        state.placement = null;
-        state.placementPreview = null;
-        state.armorPlacement = { team, index: 0, anchor: null };
+        state.armorPlacement = { team, anchor: null };
         state.armorPreview = null;
         state.activeTeam = team;
         state.phase = 'armor';
-        controls.classList.add('hidden');
         setControlsEnabled(false);
         syncArmorMessage();
       }
@@ -571,34 +571,40 @@
         }
         drawArmorBar(terrainCtx, x, y, angle, 1, true);
         refreshTerrainPixels();
-        state.armorPlacement.index++;
         state.armorPlacement.anchor = null;
         state.armorPreview = null;
-        if (state.armorPlacement.index >= ARMOR_PER_TEAM) {
-          if (state.mode === 'ai' || state.armorPlacement.team === 1) {
-            if (state.mode === 'ai') autoPlaceArmorTeam(1);
-            finishPlacement();
-          } else {
-            beginArmorPlacement(1);
-          }
-        } else {
-          syncArmorMessage();
-        }
+        const team = state.armorPlacement.team;
+        if (state.ammo && state.ammo[team] && state.ammo[team].blindage !== Infinity) state.ammo[team].blindage = Math.max(0, state.ammo[team].blindage - 1);
+        state.shooterTeam = team;
+        state.shotsByTeam[team]++;
+        if (team === 0) state.matchScore -= 300;
+        state.armorPlacement = null;
+        state.message = 'Blindage fixé.';
+        state.messageTimer = 1.4;
+        state.phase = 'pause';
+        state.phaseTimer = .75;
+        state.nextAction = afterShot;
+        setControlsEnabled(false);
+        syncControls();
         return true;
       }
       function autoPlaceArmorTeam(team) {
         const pool = state.soldiers.filter(s => s.team === team && s.alive);
-        for (let i = 0; i < ARMOR_PER_TEAM; i++) {
-          let placed = false;
-          for (let tries = 0; tries < 90 && !placed; tries++) {
-            const base = pool.length ? pool[randomInt(0, pool.length - 1)] : { x: random(90, W - 90), y: random(260, 520) };
-            const x = clamp(base.x + random(-80, 80), ARMOR_LENGTH / 2 + 24, W - ARMOR_LENGTH / 2 - 24);
-            const y = clamp(base.y - random(48, 92), 88, H - 30);
-            const angle = normDeg(random(-32, 32));
-            if (armorValid(x, y, angle)) { drawArmorBar(terrainCtx, x, y, angle, 1, true); placed = true; }
-          }
+        for (let tries = 0; tries < 90; tries++) {
+          const base = pool.length ? pool[randomInt(0, pool.length - 1)] : { x: random(90, W - 90), y: random(260, 520) };
+          const x = clamp(base.x + random(-80, 80), ARMOR_LENGTH / 2 + 24, W - ARMOR_LENGTH / 2 - 24);
+          const y = clamp(base.y - random(48, 92), 88, H - 30);
+          const angle = normDeg(random(-40, 40));
+          if (armorValid(x, y, angle)) return placeArmorAt(x, y, angle);
         }
-        refreshTerrainPixels();
+        state.message = 'Blindage impossible à poser.';
+        state.messageTimer = 1.2;
+        state.armorPlacement = null;
+        state.armorPreview = null;
+        state.phase = 'pause';
+        state.phaseTimer = .75;
+        state.nextAction = afterShot;
+        return false;
       }
       function finishPlacement() {
         state.armorPlacement = null;
@@ -690,14 +696,17 @@
         generateTerrain();
         state.particles.length = 0; state.explosions.length = 0; state.projectiles.length = 0;
         state.turnPtr = [0, 0]; state.shake = 0; state.wind = 0; state.windPulse = 0; state.activeTeam = 0; state.active = null; state.lockTarget = null; state.armorPlacement = null; state.armorPreview = null;
+        state.movement.left = false; state.movement.right = false; state.movement.aiDir = 0; state.movement.aiSwitch = 0;
         beginPlacement();
       }
-      function showMenu() { state.phase = 'menu'; state.placement = null; state.placementPreview = null; state.armorPlacement = null; state.armorPreview = null; state.projectiles.length = 0; state.particles.length = 0; state.explosions.length = 0; menuModal.classList.remove('hidden'); endModal.classList.add('hidden'); controls.classList.add('hidden'); }
+      function showMenu() { state.phase = 'menu'; state.placement = null; state.placementPreview = null; state.armorPlacement = null; state.armorPreview = null; state.movement.left = false; state.movement.right = false; state.movement.aiDir = 0; state.projectiles.length = 0; state.particles.length = 0; state.explosions.length = 0; menuModal.classList.remove('hidden'); endModal.classList.add('hidden'); controls.classList.add('hidden'); }
 
       function beginTurn(team) {
         state.activeTeam = team; state.active = nextActive(team); state.lockTarget = null;
         if (!state.active) { endBattle(1 - team); return; }
         if (!(state.ammo[team][state.weapon] > 0)) state.weapon = firstAvailable(team);
+        beginMovePhase(team);
+        return;
         state.phase = 'aim';
         const target = nearestEnemyOf(team, state.active.x, state.active.y - 18);
         if (target) {
@@ -722,9 +731,42 @@
         powerValue.textContent = String(Math.round(state.aim.power));
         renderWeapons();
       }
+      function beginMovePhase(team) {
+        state.phase = 'move';
+        state.phaseTimer = MOVE_DURATION;
+        state.movement.left = false; state.movement.right = false; state.movement.aiDir = 0; state.movement.aiSwitch = 0;
+        const target = nearestEnemyOf(team, state.active.x, state.active.y - 18);
+        if (target) state.active.dir = target.x >= state.active.x ? 1 : -1;
+        const cpu = state.mode === 'ai' && team === 1;
+        setMoveControlsEnabled(!cpu);
+        state.message = cpu ? "L'ordinateur se replace." : `${state.teamNames[team]} : 5 secondes pour te déplacer.`;
+        state.messageTimer = 1.8;
+      }
+      function beginAimPhase() {
+        if (!state.active || !state.active.alive) { afterShot(); return; }
+        const team = state.activeTeam;
+        if (!(state.ammo[team][state.weapon] > 0)) state.weapon = firstAvailable(team);
+        state.phase = 'aim';
+        state.movement.left = false; state.movement.right = false; state.movement.aiDir = 0;
+        const target = nearestEnemyOf(team, state.active.x, state.active.y - 18);
+        if (target) {
+          state.active.dir = target.x >= state.active.x ? 1 : -1;
+          state.aim.angle = normDeg(angleTo(state.active.x, state.active.y - 24, target.x, target.y - 18) + random(-7, 7));
+        } else {
+          state.aim.angle = randomInt(35, 145);
+        }
+        state.aim.power = randomInt(65, 85);
+        const cpu = state.mode === 'ai' && team === 1;
+        setControlsEnabled(!cpu);
+        syncControls();
+        state.message = cpu ? `L'ordinateur vise - ${windWords()}.` : `${state.teamNames[team]} : a toi de jouer - ${windWords()}.`;
+        state.messageTimer = 1.8;
+        if (cpu) state.aiDelay = .9;
+      }
       function renderWeapons() {
         const team = state.activeTeam, canAct = humanCanAct();
         weaponPick.innerHTML = '';
+        if (state.phase === 'move') { renderMoveControls(); return; }
         WEAPON_ORDER.forEach(k => {
           const w = WEAPONS[k], ammo = state.ammo ? state.ammo[team][k] : w.ammo;
           const btn = document.createElement('button');
@@ -735,14 +777,101 @@
           weaponPick.appendChild(btn);
         });
       }
-      function setControlsEnabled(on) { angleRange.disabled = !on; powerRange.disabled = !on; fireButton.disabled = !on; renderWeapons(); }
+      function bindHoldButton(btn, key) {
+        const on = (e) => { e.preventDefault(); state.movement[key] = true; };
+        const off = (e) => { if (e) e.preventDefault(); state.movement[key] = false; };
+        btn.addEventListener('pointerdown', on);
+        btn.addEventListener('pointerup', off);
+        btn.addEventListener('pointerleave', off);
+        btn.addEventListener('pointercancel', off);
+      }
+      function renderMoveControls() {
+        const canMove = state.phase === 'move' && humanCanMove();
+        weaponPick.innerHTML = '';
+        const left = document.createElement('button');
+        left.className = 'wbtn';
+        left.innerHTML = '◀ <span class="wn">Gauche</span>';
+        left.disabled = !canMove;
+        bindHoldButton(left, 'left');
+        const right = document.createElement('button');
+        right.className = 'wbtn';
+        right.innerHTML = '<span class="wn">Droite</span> ▶';
+        right.disabled = !canMove;
+        bindHoldButton(right, 'right');
+        const skip = document.createElement('button');
+        skip.className = 'wbtn active';
+        skip.innerHTML = '<span class="wn">Terminer</span> <span class="wa">' + Math.ceil(Math.max(0, state.phaseTimer)) + 's</span>';
+        skip.disabled = !canMove;
+        skip.addEventListener('click', endMovePhase);
+        weaponPick.append(left, right, skip);
+      }
+      function setControlsEnabled(on) { angleRange.disabled = !on; powerRange.disabled = !on; fireButton.disabled = !on; fireButton.textContent = 'Feu !'; renderWeapons(); }
+      function setMoveControlsEnabled(on) {
+        angleRange.disabled = true;
+        powerRange.disabled = true;
+        fireButton.disabled = !on;
+        fireButton.textContent = 'Terminer';
+        renderWeapons();
+      }
+      const humanCanMove = () => state.phase === 'move' && !(state.mode === 'ai' && state.activeTeam === 1);
       const humanCanAct = () => state.phase === 'aim' && !(state.mode === 'ai' && state.activeTeam === 1);
+
+      function endMovePhase() {
+        if (state.phase !== 'move') return;
+        if (state.active && state.active.falling) { state.phaseTimer = 0; return; }
+        state.movement.left = false; state.movement.right = false; state.movement.aiDir = 0;
+        beginAimPhase();
+      }
+      function moveActiveSoldier(dt, dir) {
+        const s = state.active;
+        if (!s || !s.alive || s.falling || dir === 0) return;
+        const nx = clamp(s.x + dir * MOVE_SPEED * dt, 20, W - 20);
+        const ny = landingYAt(nx, Math.max(64, s.y - MOVE_STEP));
+        s.dir = dir >= 0 ? 1 : -1;
+        s.x = nx;
+        if (Number.isFinite(ny) && Math.abs(ny - s.y) <= MOVE_STEP) {
+          s.y = ny;
+          s.vy = 0;
+          s.falling = false;
+        } else if (!supportAt(s.x, s.y)) {
+          s.falling = true;
+          s.fallStartY = s.y;
+          s.vy = Math.max(40, s.vy || 0);
+        }
+      }
+      function updateMovePhase(dt) {
+        if (state.phase !== 'move') return;
+        state.phaseTimer -= dt;
+        const cpu = state.mode === 'ai' && state.activeTeam === 1;
+        if (cpu) {
+          state.movement.aiSwitch -= dt;
+          if (state.movement.aiSwitch <= 0) {
+            const target = state.active && nearestEnemyOf(state.activeTeam, state.active.x, state.active.y - 18);
+            state.movement.aiDir = target ? (target.x >= state.active.x ? 1 : -1) : (Math.random() < .5 ? -1 : 1);
+            if (Math.random() < .28) state.movement.aiDir *= -1;
+            state.movement.aiSwitch = random(.7, 1.4);
+          }
+          moveActiveSoldier(dt, state.movement.aiDir);
+        } else {
+          moveActiveSoldier(dt, (state.movement.right ? 1 : 0) - (state.movement.left ? 1 : 0));
+        }
+        if (state.phaseTimer <= 0) {
+          if (state.active && state.active.falling) state.phaseTimer = 0;
+          else endMovePhase();
+        }
+      }
 
       function fire() {
         if (state.phase !== 'aim' || !state.active) return;
         if (state.mode === 'ai' && state.activeTeam === 1 && state.aiDelay > 0) return;
         const team = state.activeTeam, wk = state.weapon, w = WEAPONS[wk];
         if (!(state.ammo[team][wk] > 0)) { state.weapon = firstAvailable(team); syncControls(); return; }
+        if (w.kind === 'armor') {
+          state.fireEnemyKills = 0; state.fireKills = 0;
+          if (state.mode === 'ai' && team === 1) { state.armorPlacement = { team, anchor: null }; state.phase = 'armor'; autoPlaceArmorTeam(team); return; }
+          beginArmorPlacement(team);
+          return;
+        }
         if (w.kind === 'homing' && !(state.lockTarget && state.lockTarget.alive)) {
           state.message = '🎯 Clique d’abord un ennemi pour le verrouiller.'; state.messageTimer = 2.2; return;
         }
@@ -851,7 +980,8 @@
         const target = targets.reduce((a, b) => distance(shooter.x, shooter.y, a.x, a.y) < distance(shooter.x, shooter.y, b.x, b.y) ? a : b);
         const a = state.ammo[1];
         let wk;
-        if (a.bazooka > 0 && Math.random() < .4) wk = 'bazooka';
+        if (a.blindage > 0 && Math.random() < .18) wk = 'blindage';
+        else if (a.bazooka > 0 && Math.random() < .4) wk = 'bazooka';
         else if (a.chercheuse > 0 && Math.random() < .4) wk = 'chercheuse';
         else if (a.grenade > 0 && Math.random() < .4) wk = 'grenade';
         else if (a.shrapnel > 0 && Math.random() < .4) wk = 'shrapnel';
@@ -862,6 +992,7 @@
         else wk = 'pistolet';
         if (wk === 'chercheuse') state.lockTarget = target;
         state.weapon = wk; const w = WEAPONS[wk];
+        if (w.kind === 'armor') { syncControls(); fire(); return; }
         let best = { score: Infinity, angle: 45, power: 80 };
         for (let angle = 0; angle < 360; angle += 5) for (let power = 35; power <= 120; power += 4) {
           const o = launchOrigin(shooter, angle), sc = simulateShot(o.x, o.y, target, angle, power, w);
@@ -894,6 +1025,7 @@
         state.shake = Math.max(0, state.shake - dt * 26); state.windPulse = Math.max(0, state.windPulse - dt * 1.8);
         for (const s of state.soldiers) s.hitAnim = Math.max(0, s.hitAnim - dt * 1.3);
         for (const c of state.clouds) { c.x += (Math.abs(state.wind) <= 2 ? c.speed * .35 : state.wind * 1.1) * dt; if (c.x > W + 180) c.x = -220; if (c.x < -240) c.x = W + 190; }
+        updateMovePhase(dt);
         if (state.phase === 'flying') { state.flightAccumulator += dt; const fs = 1 / 180; while (state.flightAccumulator >= fs && state.phase === 'flying') { updateProjectiles(fs); state.flightAccumulator -= fs; } }
         updateSoldierFalls(dt);
         if (state.phase === 'aim' && state.mode === 'ai' && state.activeTeam === 1 && state.aiDelay > 0) { state.aiDelay -= dt; if (state.aiDelay <= 0) chooseAiShot(); }
@@ -939,7 +1071,7 @@
         ctx.restore();
       }
       function drawSoldier(s, ghost = false) {
-        const col = TEAM_COLORS[s.team], active = s === state.active && state.phase === 'aim';
+        const col = TEAM_COLORS[s.team], active = s === state.active && (state.phase === 'move' || state.phase === 'aim' || state.phase === 'armor');
         ctx.save(); if (ghost) ctx.globalAlpha = .58; ctx.translate(s.x, s.y);
         if (s.hitAnim > 0) ctx.rotate(Math.sin(performance.now() * .03) * s.hitAnim * .14);
         ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(0, 1, 16, 5, 0, 0, TWO_PI); ctx.fill();
@@ -1054,17 +1186,17 @@
         const s = Math.abs(state.wind), tier = s <= 2 ? 'CALME' : s <= 7 ? 'BRISE' : s <= 13 ? 'SOUTENU' : 'VIOLENT';
         const arrows = s <= 2 ? '' : (state.wind < 0 ? '◀' : '▶').repeat(Math.max(1, Math.ceil(s / 6)));
         ctx.fillStyle = '#ffd84a'; ctx.font = '900 13px system-ui, sans-serif';
-        ctx.fillText(state.phase === 'placing' ? 'PLACEMENT DES SOLDATS' : (state.phase === 'armor' ? 'POSE DES BLINDAGES' : `ARME : ${WEAPONS[state.weapon].name.toUpperCase()}`), W / 2, 38);
+        ctx.fillText(state.phase === 'placing' ? 'PLACEMENT DES SOLDATS' : (state.phase === 'move' ? `DÉPLACEMENT · ${Math.ceil(Math.max(0, state.phaseTimer))}S` : (state.phase === 'armor' ? 'POSE DU BLINDAGE' : `ARME : ${WEAPONS[state.weapon].name.toUpperCase()}`)), W / 2, 38);
         ctx.save(); ctx.translate(W / 2, 58); const ps = 1 + state.windPulse * .08; ctx.scale(ps, ps);
         ctx.fillStyle = s >= 14 ? '#ffcf58' : '#f7f3df'; ctx.font = '850 16px system-ui, sans-serif';
         ctx.fillText(s <= 2 ? 'VENT CALME' : `VENT ${tier} · ${s} ${arrows}`, 0, 0); ctx.restore();
         const status = state.messageTimer > 0 ? state.message : (state.phase === 'flying' ? 'La balistique fait son office.' : 'À vous de jouer.');
-        const prepStatus = state.phase === 'placing' ? placementStatus() : (state.phase === 'armor' ? armorStatus() : status);
+        const prepStatus = state.phase === 'placing' ? placementStatus() : (state.phase === 'move' ? 'Marche avec gauche/droite, puis termine pour viser.' : (state.phase === 'armor' ? armorStatus() : status));
         ctx.fillStyle = '#bdc3dc'; ctx.font = '650 12px system-ui, sans-serif'; ctx.fillText(truncate(prepStatus, 64), W / 2, 78);
         ctx.restore();
       }
       function drawTeamCard(x, y, w, h, team) {
-        const isTurn = (state.phase === 'placing' && state.placement && state.placement.team === team) || (state.phase === 'armor' && state.armorPlacement && state.armorPlacement.team === team) || (state.activeTeam === team && (state.phase === 'aim' || state.phase === 'flying'));
+        const isTurn = (state.phase === 'placing' && state.placement && state.placement.team === team) || (state.phase === 'armor' && state.armorPlacement && state.armorPlacement.team === team) || (state.activeTeam === team && (state.phase === 'move' || state.phase === 'aim' || state.phase === 'flying'));
         ctx.save(); roundedRect(ctx, x, y, w, h, 16); ctx.fillStyle = 'rgba(8,11,29,.78)'; ctx.fill();
         ctx.strokeStyle = isTurn ? TEAM_COLORS[team] : 'rgba(255,255,255,.12)'; ctx.lineWidth = isTurn ? 3 : 1; ctx.stroke();
         ctx.textAlign = 'left'; ctx.fillStyle = '#f7f3df'; ctx.font = '850 17px system-ui, sans-serif';
@@ -1089,7 +1221,7 @@
       replayButton.addEventListener('click', () => startGame(true));
       menuButton.addEventListener('click', showMenu);
       quitButton.addEventListener('click', showMenu);
-      fireButton.addEventListener('click', fire);
+      fireButton.addEventListener('click', () => { if (state.phase === 'move') endMovePhase(); else fire(); });
       function canvasPoint(e) {
         const rect = canvas.getBoundingClientRect();
         return { x: (e.clientX - rect.left) / rect.width * W, y: (e.clientY - rect.top) / rect.height * H };
@@ -1153,10 +1285,22 @@
         const team = state.activeTeam;
         if (!(state.ammo && state.ammo[team][k] > 0)) return;
         state.weapon = k;
+        if (k === 'blindage') { state.message = 'Appuie sur Feu, puis glisse sur la carte pour poser le blindage.'; state.messageTimer = 2.4; }
         if (k === 'chercheuse' && !(state.lockTarget && state.lockTarget.alive)) { state.message = '🎯 Clique un ennemi pour le verrouiller.'; state.messageTimer = 2.4; }
         syncControls();
       }
       window.addEventListener('keydown', e => {
+        if (humanCanMove()) {
+          let moved = true;
+          switch (e.key) {
+            case 'ArrowLeft': state.movement.left = true; break;
+            case 'ArrowRight': state.movement.right = true; break;
+            case ' ': endMovePhase(); break;
+            default: moved = false;
+          }
+          if (moved) e.preventDefault();
+          return;
+        }
         if (!humanCanAct()) return; let h = true;
         switch (e.key) {
           case 'ArrowUp': state.aim.angle = normDeg(state.aim.angle + 1); break;
@@ -1171,10 +1315,15 @@
           case '6': selectWeapon('boomerang'); break;
           case '7': selectWeapon('grenade'); break;
           case '8': selectWeapon('shrapnel'); break;
+          case '9': selectWeapon('blindage'); break;
           case ' ': fire(); break;
           default: h = false;
         }
         if (h) { e.preventDefault(); syncControls(); }
+      }, { passive: false });
+      window.addEventListener('keyup', e => {
+        if (e.key === 'ArrowLeft') state.movement.left = false;
+        if (e.key === 'ArrowRight') state.movement.right = false;
       }, { passive: false });
 
       function frame(now) { const dt = Math.min(.034, Math.max(0, (now - state.lastTime) / 1000)); state.lastTime = now; update(dt); draw(); requestAnimationFrame(frame); }
