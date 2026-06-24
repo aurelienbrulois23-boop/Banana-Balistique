@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#10142b" />
+  <title>Niveau 5 — Worms Formules</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f7f3df; --muted: #b9bfd5; --panel: rgba(13,17,39,.92); --line: rgba(255,255,255,.13);
+      --gold: #ffd84a; --green: #57e08a; --red: #ff6f8f; --sky: #5ec1ff;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%;
+      background: radial-gradient(circle at 50% -20%, #2c3a5e 0, #16203a 38%, #080c1c 100%);
+      color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+    body { display: grid; place-items: center; min-height: 100dvh; padding: 14px; overflow-x: hidden; }
+    button, input { font: inherit; }
+    button { border: 0; cursor: pointer; color: #111525; font-weight: 850; }
+    .game-shell { width: min(1280px, 100%); display: grid; gap: 10px; }
+    .stage { position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,.18); border-radius: 22px;
+      background: #081225; box-shadow: 0 24px 80px rgba(0,0,0,.45); aspect-ratio: 16/9; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .modal { position: absolute; inset: 0; display: grid; place-items: center; padding: clamp(14px,3vw,30px);
+      background: linear-gradient(rgba(4,7,19,.6), rgba(4,7,19,.86)); backdrop-filter: blur(8px); z-index: 5; overflow-y: auto; }
+    .modal.hidden { display: none; }
+    .card { width: min(600px, 100%); padding: clamp(20px,4vw,32px); border: 1px solid rgba(255,255,255,.16);
+      border-radius: 22px; background: linear-gradient(145deg, rgba(28,38,68,.96), rgba(11,16,33,.96)); box-shadow: 0 26px 70px rgba(0,0,0,.45); }
+    .eyebrow { margin: 0 0 5px; color: var(--gold); font-size: .76rem; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(1.7rem,6vw,3rem); line-height: .95; text-transform: uppercase; letter-spacing: -.03em; }
+    .tagline { color: var(--muted); margin: 12px 0 18px; line-height: 1.55; font-size: .98rem; }
+    .tagline strong { color: var(--ink); }
+    .primary, .secondary { border-radius: 14px; min-height: 48px; width: 100%; transition: transform .12s, filter .12s; }
+    .primary { margin-top: 8px; background: linear-gradient(180deg, #ffe46d, #ffc82f); box-shadow: 0 7px 0 #9c6610; }
+    .secondary { background: #dbe0f4; box-shadow: 0 5px 0 #7f88aa; }
+    .primary:active, .secondary:active { transform: translateY(2px); }
+    .end-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+    .winner { margin: 8px 0 0; color: var(--gold); font-size: clamp(1.4rem,5vw,2.2rem); font-weight: 950; }
+    .ref { border-left: 3px solid var(--gold); padding: 8px 0 8px 14px; margin: 14px 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+    .ref code { color: var(--gold); font-family: ui-monospace, "Share Tech Mono", monospace; }
+
+    .controls { display: grid; grid-template-columns: auto auto 1fr auto; align-items: end; gap: 14px;
+      padding: 13px 14px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); box-shadow: 0 14px 40px rgba(0,0,0,.28); }
+    .controls.hidden { display: none; }
+    .num { display: grid; gap: 5px; }
+    .num label { color: var(--muted); font-size: .74rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+    .num input { width: 110px; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; background: rgba(2,5,18,.6);
+      color: var(--ink); outline: none; font-family: ui-monospace, monospace; font-size: 1.15rem; text-align: center; }
+    .num input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,216,74,.16); }
+    .brief { align-self: center; color: var(--muted); font-size: .86rem; line-height: 1.4; min-width: 0; }
+    .brief b { color: var(--gold); }
+    .fire-button { min-width: 150px; min-height: 50px; padding: 0 20px; border-radius: 14px; align-self: stretch;
+      background: linear-gradient(180deg, #ffdf54, #ffb61f); box-shadow: inset 0 -5px 0 rgba(126,68,0,.32); text-transform: uppercase; }
+    .fire-button:disabled, .num input:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.3); }
+    .menu-row { display: flex; justify-content: flex-end; gap: 8px; }
+    .icon-button { min-width: 44px; padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,.1); color: var(--ink); border: 1px solid rgba(255,255,255,.12); font-weight: 800; }
+    .hint { margin: 0; text-align: center; color: #8e96b5; font-size: .76rem; }
+    @media (max-width: 760px) { .controls { grid-template-columns: 1fr 1fr; } .brief { grid-column: 1/-1; order: -1; } .num input { width: 100%; } .fire-button { grid-column: 1/-1; } .hint { display: none; } }
+  </style>
+</head>
+<body>
+  <main class="game-shell" aria-label="Worms Formules">
+    <section class="stage">
+      <canvas id="game" width="1280" height="720"></canvas>
+
+      <div id="introModal" class="modal">
+        <div class="card">
+          <p class="eyebrow">Niveau 5 · Jeu · Tir calculé</p>
+          <h1>Worms<br>Formules</h1>
+          <p class="tagline">Le niveau ultime. <strong>Fini la visée à l'œil</strong> : on te donne la distance de la cible, et c'est à toi de <strong>calculer</strong> la vitesse <em>v</em> et l'angle <em>θ</em> avec les lois du Niveau 4. Tu les saisis, le canon tire <strong>exactement</strong> ta formule. La physique devient ton arme.</p>
+          <div class="ref">
+            <strong>Tes outils</strong> (g = 9,8 m/s²) :<br>
+            Portée : <code>R = v²·sin(2θ) / g</code><br>
+            Hauteur : <code>H = v²·sin²θ / (2g)</code><br>
+            Astuce de départ : à <code>θ = 45°</code>, il suffit de <code>v = √(R·g)</code>.
+          </div>
+          <button id="startButton" class="primary">Commencer les tirs</button>
+        </div>
+      </div>
+
+      <div id="endModal" class="modal hidden">
+        <div class="card">
+          <p class="eyebrow">Stand de tir terminé</p>
+          <div id="winnerText" class="winner">Sans-faute balistique !</div>
+          <p id="finalScore" class="tagline"></p>
+          <a id="nextLevelButton" class="primary" href="index.html" style="display:none;padding:13px;text-align:center;text-decoration:none;color:#111525;font-weight:850;">🎓 Continuer au QG →</a>
+          <div class="end-actions">
+            <button id="replayButton" class="primary" style="margin-top:0">Rejouer</button>
+            <button id="menuButton" class="secondary">Quitter</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="controls" class="controls hidden" aria-label="Commandes de tir">
+      <div class="num"><label for="vIn">Vitesse v (m/s)</label><input id="vIn" type="number" inputmode="decimal" min="5" max="95" step="0.5" value="40" /></div>
+      <div class="num"><label for="aIn">Angle θ (°)</label><input id="aIn" type="number" inputmode="decimal" min="5" max="85" step="0.5" value="45" /></div>
+      <div class="brief" id="brief">—</div>
+      <button id="fireButton" class="fire-button">Tirer !</button>
+    </section>
+    <div class="menu-row">
+      <button id="quitButton" class="icon-button" title="Menu">☰ Menu</button>
+    </div>
+    <p class="hint">Lis la distance, calcule v et θ, saisis-les, et tire. Tolérance accordée — vise juste, pas parfait.</p>
+  </main>
+
+  <script src="bb_save.js"></script>
+  <script>
+    (() => {
+      'use strict';
+      const W = 1280, H = 720, TWO_PI = Math.PI * 2;
+      const G = 9.8;                         // m/s² — vraies unités
+      const ORIGIN_X = 110, GROUND_Y = 600;  // px : position du canon / ligne de sol
+      const SCALE = 3.0;                     // pixels par mètre
+      const HIT_R = 22;                      // rayon de réussite, en mètres (tolérance accordée)
+      const owner = (window.BB && BB.getOwner && BB.getOwner()) || 'Chevalier';
+
+      // mètres -> pixels
+      const sx = (mx) => ORIGIN_X + mx * SCALE;
+      const sy = (my) => GROUND_Y - my * SCALE;
+
+      const CHALLENGES = [
+        { d: 160, wall: null, platform: 0,
+          brief: 'Cible à plat : <b>160 m</b>. (Indice : à 45°, v = √(160·9,8).)' },
+        { d: 245, wall: { x: 120, h: 60 }, platform: 0,
+          brief: 'Cible à <b>245 m</b>, derrière un <b>mur de 60 m</b> (à 120 m). Passe en cloche !' },
+        { d: 300, wall: null, platform: 55,
+          brief: 'Cible perchée : <b>55 m de haut</b>, à <b>300 m</b>. Pense à la hauteur H.' }
+      ];
+
+      const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+      const introModal = document.getElementById('introModal'), endModal = document.getElementById('endModal');
+      const controls = document.getElementById('controls'), brief = document.getElementById('brief');
+      const vIn = document.getElementById('vIn'), aIn = document.getElementById('aIn');
+      const fireButton = document.getElementById('fireButton'), startButton = document.getElementById('startButton');
+      const replayButton = document.getElementById('replayButton'), menuButton = document.getElementById('menuButton');
+      const quitButton = document.getElementById('quitButton');
+      const winnerText = document.getElementById('winnerText'), finalScore = document.getElementById('finalScore');
+      const nextLevelButton = document.getElementById('nextLevelButton');
+
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      const random = (a, b) => a + Math.random() * (b - a);
+
+      const state = {
+        phase: 'intro', idx: 0, attempts: 0, score: 0,
+        proj: null, ghosts: [], explosions: [], particles: [],
+        message: 'Lis la distance, calcule, et tire.', messageKind: 'info',
+        stars: [], last: performance.now()
+      };
+
+      function initStars() { state.stars = Array.from({ length: 60 }, () => ({ x: random(0, W), y: random(20, 320), r: random(.6, 1.8), a: random(.3, .9) })); }
+      const challenge = () => CHALLENGES[state.idx];
+
+      function startGame() {
+        state.phase = 'aim'; state.idx = 0; state.attempts = 0; state.score = 0;
+        state.proj = null; state.ghosts = []; state.explosions = []; state.particles = [];
+        introModal.classList.add('hidden'); endModal.classList.add('hidden'); controls.classList.remove('hidden');
+        loadChallenge();
+      }
+      function loadChallenge() {
+        state.attempts = 0; state.ghosts = []; state.proj = null;
+        brief.innerHTML = challenge().brief;
+        state.message = `Défi ${state.idx + 1} / ${CHALLENGES.length} — calcule ton tir !`;
+        state.messageKind = 'info';
+        setInputs(true);
+      }
+      function setInputs(on) { vIn.disabled = !on; aIn.disabled = !on; fireButton.disabled = !on; }
+      function showMenu() { state.phase = 'intro'; introModal.classList.remove('hidden'); endModal.classList.add('hidden'); controls.classList.add('hidden'); }
+
+      function fire() {
+        if (state.phase !== 'aim') return;
+        const v = parseFloat(vIn.value), th = parseFloat(aIn.value);
+        if (!(v > 0) || !(th > 0)) { flash('Entre une vitesse et un angle valides.', 'bad'); return; }
+        const vv = clamp(v, 1, 200), tt = clamp(th, 1, 89), r = tt * Math.PI / 180;
+        state.proj = { px: 0, py: 0, vx: vv * Math.cos(r), vy: vv * Math.sin(r), t: 0, prevPx: 0, prevPy: 0, trail: [] };
+        state.attempts++;
+        state.phase = 'flying'; setInputs(false);
+        state.message = `Tir : v=${vv} m/s, θ=${tt}° — la balistique tranche…`; state.messageKind = 'info';
+      }
+
+      function stepProjectile(dt) {
+        const p = state.proj, ch = challenge(); if (!p) return;
+        p.prevPx = p.px; p.prevPy = p.py;
+        p.t += dt; p.vy -= G * dt; p.px += p.vx * dt; p.py += p.vy * dt;
+        if (p.trail.length === 0 || (p.px - p.trail[p.trail.length - 1].x) > 1.5) p.trail.push({ x: p.px, y: p.py });
+
+        // mur : si la trajectoire passe l'abscisse du mur sous sa hauteur → bloquée
+        if (ch.wall && p.prevPx < ch.wall.x && p.px >= ch.wall.x) {
+          const frac = (ch.wall.x - p.prevPx) / Math.max(1e-6, p.px - p.prevPx);
+          const pyAtWall = p.prevPy + (p.py - p.prevPy) * frac;
+          if (pyAtWall < ch.wall.h) { explodeAt(ch.wall.x, Math.max(0, pyAtWall)); resolve(false, '🧱 Bloqué par le mur ! Monte l\'angle pour une cloche plus haute.'); return; }
+        }
+        // cible touchée ?
+        const dT = Math.hypot(p.px - ch.d, p.py - ch.platform);
+        if (dT < HIT_R) { explodeAt(ch.d, ch.platform); resolve(true); return; }
+        // retombée au sol
+        if (p.t > 0.04 && p.py <= 0) {
+          explodeAt(p.px, 0);
+          const miss = p.px - ch.d;
+          let msg;
+          if (ch.platform > 0) msg = `Tombé au sol à ${p.px.toFixed(0)} m — la cible est en hauteur (55 m). Vise plus haut/fort.`;
+          else if (miss < -HIT_R) msg = `📏 Trop court : ${p.px.toFixed(0)} m (cible ${ch.d} m). Augmente v.`;
+          else if (miss > HIT_R) msg = `📏 Trop long : ${p.px.toFixed(0)} m (cible ${ch.d} m). Réduis v.`;
+          else msg = `Presque ! ${p.px.toFixed(0)} m. Ajuste finement.`;
+          resolve(false, msg); return;
+        }
+        if (p.px > 460) { resolve(false, 'Parti trop loin — réduis la vitesse.'); }
+      }
+
+      function resolve(hit, msg) {
+        if (state.proj) state.ghosts.push({ trail: state.proj.trail.slice(), hit });
+        state.proj = null;
+        if (hit) {
+          const reward = Math.max(2000, 10000 - (state.attempts - 1) * 1500);
+          state.score += reward;
+          state.message = `🎯 TOUCHÉ en ${state.attempts} tir(s) ! +${reward.toLocaleString('fr-FR')} pts`;
+          state.messageKind = 'ok';
+          state.phase = 'pause'; state.pauseT = 1.6;
+        } else {
+          state.message = msg || 'Manqué.'; state.messageKind = 'bad';
+          state.phase = 'aim'; setInputs(true);
+        }
+      }
+      function nextChallenge() {
+        if (state.idx < CHALLENGES.length - 1) { state.idx++; loadChallenge(); state.phase = 'aim'; }
+        else endRange();
+      }
+      function endRange() {
+        state.phase = 'done'; setInputs(false); controls.classList.add('hidden');
+        const score = state.score;
+        winnerText.textContent = 'Sans-faute balistique !';
+        finalScore.textContent = `Tu as touché les 3 cibles par le calcul · ${score.toLocaleString('fr-FR')} pts. La physique est officiellement ton arme.`;
+        if (window.BB) {
+          const who = (BB.getOwner && BB.getOwner()) || 'Chevalier';
+          if (typeof BB.submitScore === 'function') BB.submitScore(who, score);
+          if (typeof BB.setLastScore === 'function') BB.setLastScore(score);
+          if (typeof BB.markDone === 'function') BB.markDone('N5', { points: score });
+          nextLevelButton.style.display = 'block';
+          finalScore.textContent += ' 🎓 Niveau 6 débloqué !';
+        }
+        endModal.classList.remove('hidden');
+      }
+
+      function explodeAt(mx, my) {
+        state.explosions.push({ x: sx(mx), y: sy(my), age: 0, life: .5, maxR: 40 });
+        for (let i = 0; i < 36; i++) { const a = random(0, TWO_PI), s = random(40, 230); state.particles.push({ x: sx(mx), y: sy(my), vx: Math.cos(a) * s, vy: Math.sin(a) * s - 40, life: random(.4, 1), size: random(2, 6), color: ['#fff3a6', '#ffd34e', '#ff9f38', '#ff5f45'][i % 4], g: random(160, 320) }); }
+      }
+      function flash(msg, kind) { state.message = msg; state.messageKind = kind || 'info'; }
+
+      function update(dt) {
+        if (state.phase === 'flying') { let acc = dt; const fs = 1 / 240; while (acc > 0 && state.phase === 'flying') { stepProjectile(Math.min(fs, acc)); acc -= fs; } }
+        if (state.phase === 'pause') { state.pauseT -= dt; if (state.pauseT <= 0) nextChallenge(); }
+        for (const e of state.explosions) e.age += dt; state.explosions = state.explosions.filter(e => e.age < e.life);
+        for (const p of state.particles) { p.life -= dt; p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; }
+        state.particles = state.particles.filter(p => p.life > 0);
+      }
+
+      function draw() {
+        // ciel
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#0b1233'); g.addColorStop(.55, '#39406a'); g.addColorStop(1, '#86a7c9');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+        for (const s of state.stars) { ctx.fillStyle = `rgba(255,255,235,${s.a})`; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TWO_PI); ctx.fill(); }
+        if (state.phase === 'intro') return;
+        const ch = challenge();
+        // sol
+        ctx.fillStyle = '#3a2e22'; ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+        ctx.fillStyle = '#5b4630'; ctx.fillRect(0, GROUND_Y, W, 10);
+        ctx.strokeStyle = '#7ee87f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(W, GROUND_Y); ctx.stroke();
+        // graduations tous les 50 m
+        ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.font = '600 12px system-ui'; ctx.textAlign = 'center';
+        for (let m = 0; m <= 360; m += 50) { const x = sx(m); ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(x, GROUND_Y, 1, 8); ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillText(m + ' m', x, GROUND_Y + 24); }
+        // mur
+        if (ch.wall) {
+          const wx = sx(ch.wall.x), wt = sy(ch.wall.h);
+          ctx.fillStyle = '#6b6f86'; ctx.fillRect(wx - 9, wt, 18, GROUND_Y - wt);
+          ctx.fillStyle = '#4a4e63'; for (let yy = wt; yy < GROUND_Y; yy += 14) ctx.fillRect(wx - 9, yy, 18, 2);
+          ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.font = '700 12px system-ui'; ctx.fillText(ch.wall.h + ' m', wx, wt - 8);
+        }
+        // plateforme (cible en hauteur)
+        if (ch.platform > 0) {
+          const pxp = sx(ch.d), pyp = sy(ch.platform);
+          ctx.fillStyle = '#6b5f4a'; ctx.fillRect(pxp - 34, pyp, 68, 12);
+          ctx.fillStyle = '#8a5a32'; ctx.fillRect(pxp - 3, pyp, 6, GROUND_Y - pyp);
+        }
+        // trajectoires fantômes (tentatives passées)
+        for (const ghost of state.ghosts) {
+          ctx.strokeStyle = ghost.hit ? 'rgba(110,231,168,.5)' : 'rgba(255,111,143,.28)';
+          ctx.lineWidth = 1.5; ctx.beginPath();
+          ghost.trail.forEach((pt, i) => { const X = sx(pt.x), Y = sy(pt.y); if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); });
+          ctx.stroke();
+        }
+        // cible (soldat)
+        drawTarget(sx(ch.d), sy(ch.platform));
+        // canon
+        drawCannon(ch);
+        // projectile + trajectoire courante
+        if (state.proj) {
+          ctx.strokeStyle = 'rgba(255,216,74,.85)'; ctx.lineWidth = 3; ctx.beginPath();
+          state.proj.trail.forEach((pt, i) => { const X = sx(pt.x), Y = sy(pt.y); if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); });
+          ctx.lineTo(sx(state.proj.px), sy(state.proj.py)); ctx.stroke();
+          ctx.fillStyle = '#fff3c4'; ctx.beginPath(); ctx.arc(sx(state.proj.px), sy(state.proj.py), 6, 0, TWO_PI); ctx.fill();
+        }
+        // FX
+        for (const e of state.explosions) { const t = e.age / e.life, r = e.maxR * Math.sin(Math.min(1, t) * Math.PI * .7); const rg = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, Math.max(1, r)); rg.addColorStop(0, `rgba(255,255,215,${1 - t})`); rg.addColorStop(.5, `rgba(255,150,60,${.8 - t * .6})`); rg.addColorStop(1, 'rgba(255,80,60,0)'); ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(e.x, e.y, r, 0, TWO_PI); ctx.fill(); }
+        for (const p of state.particles) { ctx.globalAlpha = clamp(p.life, 0, 1); ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TWO_PI); ctx.fill(); }
+        ctx.globalAlpha = 1;
+        drawHud(ch);
+      }
+
+      function drawCannon(ch) {
+        const r = (parseFloat(aIn.value) || 45) * Math.PI / 180;
+        ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(ORIGIN_X, GROUND_Y, 22, 6, 0, 0, TWO_PI); ctx.fill();
+        ctx.fillStyle = '#2a2a36'; ctx.beginPath(); ctx.arc(ORIGIN_X, GROUND_Y - 10, 16, Math.PI, 0); ctx.fill();
+        ctx.save(); ctx.translate(ORIGIN_X, GROUND_Y - 12); ctx.rotate(-r);
+        ctx.fillStyle = '#ffd84a'; ctx.fillRect(0, -6, 40, 12);
+        ctx.fillStyle = '#b78a1e'; ctx.fillRect(34, -7, 6, 14); ctx.restore();
+      }
+      function drawTarget(x, y) {
+        ctx.fillStyle = '#ff6f8f'; ctx.beginPath(); ctx.moveTo(x, y - 34); ctx.lineTo(x - 11, y - 6); ctx.lineTo(x + 11, y - 6); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#1c1b26'; ctx.beginPath(); ctx.arc(x, y - 30, 9, 0, TWO_PI); ctx.fill();
+        ctx.fillStyle = '#ff6f8f'; ctx.beginPath(); ctx.arc(x, y - 30, 6, 0, TWO_PI); ctx.fill();
+        // mire
+        const t = performance.now() * .004, rr = 20 + Math.sin(t) * 2;
+        ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y - 18, rr, 0, TWO_PI); ctx.stroke();
+      }
+      function drawHud(ch) {
+        // bandeau distance
+        ctx.save(); roundedRect(W / 2 - 250, 16, 500, 56, 14); ctx.fillStyle = 'rgba(8,11,29,.8)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffd84a'; ctx.font = '900 14px system-ui';
+        ctx.fillText(`DÉFI ${state.idx + 1}/${CHALLENGES.length} · CIBLE À ${ch.d} m${ch.platform ? ' · HAUTEUR ' + ch.platform + ' m' : ''}${ch.wall ? ' · MUR ' + ch.wall.h + ' m' : ''}`, W / 2, 40);
+        ctx.fillStyle = state.messageKind === 'ok' ? '#6ee07a' : state.messageKind === 'bad' ? '#ff8a78' : '#cdd3ea';
+        ctx.font = '700 13px system-ui'; ctx.fillText(trunc(state.message, 72), W / 2, 60);
+        ctx.restore();
+        // score + tirs
+        ctx.save(); ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(8,11,29,.8)'; roundedRect(20, 16, 180, 56, 14); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.stroke();
+        ctx.fillStyle = '#8e96b5'; ctx.font = '700 10px system-ui'; ctx.fillText('SCORE', 36, 36);
+        ctx.fillStyle = '#ffd84a'; ctx.font = '900 20px system-ui'; ctx.fillText(state.score.toLocaleString('fr-FR'), 36, 60);
+        ctx.fillStyle = '#8e96b5'; ctx.font = '700 12px system-ui'; ctx.textAlign = 'right'; ctx.fillText('tirs : ' + state.attempts, 188, 60);
+        ctx.restore();
+      }
+      function roundedRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+      function trunc(t, n) { t = String(t); return t.length > n ? t.slice(0, n - 1) + '…' : t; }
+
+      startButton.addEventListener('click', startGame);
+      replayButton.addEventListener('click', startGame);
+      menuButton.addEventListener('click', showMenu);
+      quitButton.addEventListener('click', showMenu);
+      fireButton.addEventListener('click', fire);
+      [vIn, aIn].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') fire(); }));
+
+      function frame(now) { const dt = Math.min(.034, (now - state.last) / 1000); state.last = now; update(dt); draw(); requestAnimationFrame(frame); }
+      initStars(); draw(); requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
