@@ -89,6 +89,20 @@
       .tagline { margin-bottom: 16px; }
       .control-head { font-size: .68rem; }
     }
+    /* Paysage court (téléphone à l'horizontale) : barre compacte qui tient dans la hauteur */
+    @media (orientation: landscape) and (max-height: 560px) {
+      body { place-items: center; padding: 5px; }
+      .controls { padding: 5px 8px; gap: 5px; border-radius: 14px; }
+      .weapon-bar { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .wbtn { min-width: 64px; min-height: 0; flex: 0 0 auto; padding: 5px 6px; font-size: .66rem; }
+      .control-row { grid-template-columns: 1fr 1fr auto auto; gap: 7px; }
+      .control-block { padding: 1px 4px; } .control-head { font-size: .62rem; }
+      input[type=range] { min-height: 22px; }
+      .fire-button { grid-column: auto; min-width: 90px; min-height: 0; }
+      .mini-actions { grid-column: auto; min-height: 0; grid-template-columns: 1fr 1fr; }
+      .icon-button { padding: 6px 10px; }
+      .hint { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -168,6 +182,7 @@
   </main>
 
   <script src="bb_save.js"></script>
+  <script src="mobile.js"></script>
   <script>
     (() => {
       'use strict';

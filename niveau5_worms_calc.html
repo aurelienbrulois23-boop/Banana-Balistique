@@ -57,6 +57,10 @@
     .icon-button { min-width: 44px; padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,.1); color: var(--ink); border: 1px solid rgba(255,255,255,.12); font-weight: 800; }
     .hint { margin: 0; text-align: center; color: #8e96b5; font-size: .76rem; }
     @media (max-width: 760px) { .controls { grid-template-columns: 1fr 1fr; } .brief { grid-column: 1/-1; order: -1; } .num input { width: 100%; } .fire-button { grid-column: 1/-1; } .hint { display: none; } }
+    @media (orientation: landscape) and (max-height: 560px) {
+      body { padding: 5px; } .hint { display: none; } .menu-row { margin: 0; }
+      .controls { padding: 9px 12px; gap: 10px; } .num input { padding: 8px 10px; font-size: 1rem; }
+    }
   </style>
 </head>
 <body>
@@ -106,6 +110,7 @@
   </main>
 
   <script src="bb_save.js"></script>
+  <script src="mobile.js"></script>
   <script>
     (() => {
       'use strict';

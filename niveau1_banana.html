@@ -310,6 +310,16 @@
       .fire-button { grid-column: 1 / -1; }
       .mini-actions { grid-column: 1 / -1; }
     }
+    /* Paysage court (téléphone à l'horizontale) : barre compacte sur une rangée */
+    @media (orientation: landscape) and (max-height: 560px) {
+      body { place-items: center; padding: 5px; }
+      .controls { grid-template-columns: 1fr 1fr auto auto; padding: 6px 10px; gap: 8px; }
+      .control-block { padding: 1px 6px; } .control-head { font-size: .64rem; }
+      input[type=range] { min-height: 22px; }
+      .fire-button { grid-column: auto; min-height: 0; min-width: 100px; }
+      .mini-actions { grid-column: auto; min-height: 0; }
+      .hint { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -391,6 +401,7 @@
   </main>
 
   <script src="bb_save.js"></script>
+  <script src="mobile.js"></script>
   <script>
     (function () {
       var el = document.getElementById('gameDedication');
